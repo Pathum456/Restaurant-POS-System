@@ -16,6 +16,9 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
     <style>
         :root {
             --slate-900: #0f172a;
@@ -36,6 +39,31 @@
             background-color: var(--slate-900);
             color: var(--slate-300);
         }
+
+        /* --- SweetAlert2 Dark Theme --- */
+        .swal2-popup {
+            background-color: var(--slate-800) !important;
+            color: var(--slate-300) !important;
+        }
+        .swal2-title {
+            color: white !important;
+        }
+        .swal2-confirm {
+            background-color: var(--emerald-500) !important;
+        }
+        .swal2-cancel {
+            background-color: var(--slate-600) !important;
+        }
+        .swal2-toast .swal2-title {
+            color: white !important;
+            margin: 0.5em 1em;
+            font-size: 1em;
+        }
+        .swal2-toast .swal2-html-container {
+             margin-left: 1em;
+             margin-right: 1em;
+        }
+
 
         /* --- Login Page --- */
         #login-page {
@@ -368,6 +396,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
     <script>
         $(document).ready(function() {
@@ -719,6 +750,7 @@
                                                     `).join('')}
                                                 </ul>
                                                 <div class="d-flex justify-content-end gap-2">
+                                                    ${status === 'New' ? `<button class="btn btn-sm btn-outline-danger kot-action-btn" data-order-id="${order.id}" data-action="cancel">Cancel</button>` : ''}
                                                     ${status === 'Preparing' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-new">Back</button>` : ''}
                                                     ${status === 'Ready' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-preparing">Back</button>` : ''}
                                                     ${actionButton}
@@ -1105,20 +1137,29 @@
             
             // Order Modal: Cancel Order
             $('body').on('click', '#cancel-order-btn', function() {
-                if (confirm('Are you sure you want to cancel this entire order?')) {
-                    const tableId = state.activeModalTableId;
-                    const table = state.tables.find(t => t.id === tableId);
-                    
-                    // Remove the corresponding 'new' KOT from the kitchen list
-                    state.kitchenOrders = state.kitchenOrders.filter(ko => !(ko.tableId === tableId && ko.status === 'new'));
-                    
-                    table.order = [];
-                    table.status = 'available';
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "This will cancel the entire order for this table.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, cancel it!',
+                    cancelButtonText: 'No, keep it'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const tableId = state.activeModalTableId;
+                        const table = state.tables.find(t => t.id === tableId);
+                        
+                        // Remove the corresponding 'new' KOT from the kitchen list
+                        state.kitchenOrders = state.kitchenOrders.filter(ko => !(ko.tableId === tableId && ko.status === 'new'));
+                        
+                        table.order = [];
+                        table.status = 'available';
 
-                    $('#orderModal').modal('hide');
-                    showToast(`Order for ${table.name} has been cancelled.`);
-                    render();
-                }
+                        $('#orderModal').modal('hide');
+                        Swal.fire('Cancelled!', `Order for ${table.name} has been cancelled.`, 'success');
+                        render();
+                    }
+                });
             });
 
 
@@ -1173,8 +1214,31 @@
                                 table.status = 'billing';
                             }
                         }
-                        showToast(`${order.tableName}'s order is served.`);
+                        showToast(`${order.tableName}'s order has been served.`);
                         break;
+                    case 'cancel':
+                        Swal.fire({
+                            title: 'Cancel Order?',
+                            text: `This will cancel the entire order for ${order.tableName}. This cannot be undone.`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, cancel it!',
+                            cancelButtonText: 'No, keep it'
+                        }).then((result) => {
+                             if (result.isConfirmed) {
+                                const tableToClear = state.tables.find(t => t.id === order.tableId);
+                                if (tableToClear) {
+                                    // Remove all KOTs for this table, not just the one clicked
+                                    state.kitchenOrders = state.kitchenOrders.filter(ko => ko.tableId !== tableToClear.id);
+                                    // Reset the table
+                                    tableToClear.order = [];
+                                    tableToClear.status = 'available';
+                                    Swal.fire('Cancelled!', `Order for ${tableToClear.name} has been cancelled.`, 'success');
+                                    render();
+                                }
+                            }
+                        });
+                        return; // Prevent fall-through and re-render
                     case 'move-to-new':
                         order.status = 'new';
                         break;
@@ -1183,6 +1247,18 @@
                         break;
                     default: // 'preparing', 'ready'
                         order.status = action;
+                         if (action === 'ready') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'info',
+                                title: `Order for ${order.tableName} is ready!`,
+                                html: 'Please pick it up from the kitchen.',
+                                showConfirmButton: false,
+                                timer: 5000,
+                                timerProgressBar: true
+                            });
+                        }
                         break;
                 }
                 render();
@@ -1193,12 +1269,24 @@
                 const itemId = $(this).data('item-id');
                 const item = state.inventory.find(i => i.id === itemId);
                 if (item) {
-                    const amount = prompt(`How many units of ${item.name} to add?`, 20);
-                    if (amount && !isNaN(amount) && Number(amount) > 0) {
-                        item.stock += Number(amount);
-                        showToast(`${item.name} stock updated to ${item.stock}.`);
-                        render();
-                    }
+                    Swal.fire({
+                        title: `Restock ${item.name}`,
+                        input: 'number',
+                        inputLabel: 'Quantity to add',
+                        inputValue: 20,
+                        showCancelButton: true,
+                        inputValidator: (value) => {
+                            if (!value || value <= 0) {
+                                return 'Please enter a valid quantity!'
+                            }
+                        }
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            item.stock += parseInt(result.value);
+                            showToast(`${item.name} stock updated to ${item.stock}.`);
+                            render();
+                        }
+                    });
                 }
             });
             
@@ -1281,11 +1369,20 @@
             $('body').on('click', '.remove-user-btn', function() {
                 const userId = $(this).data('user-id');
                 const user = state.users[userId];
-                if (user && confirm(`Are you sure you want to remove ${user.name}?`)) {
-                    delete state.users[userId];
-                    showToast('User removed successfully!');
-                    render();
-                }
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: `You are about to remove ${user.name}. This cannot be undone.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, remove them!',
+                    cancelButtonText: 'No, keep them'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        delete state.users[userId];
+                        Swal.fire('Removed!', `${user.name} has been removed.`, 'success');
+                        render();
+                    }
+                });
             });
 
 
