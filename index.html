@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant POS System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-400: #94a3b8;
+            --slate-300: #cbd5e1;
+            --emerald-400: #34d399;
+            --emerald-500: #10b981;
+            --blue-500: #3b82f6;
+            --yellow-500: #eab308;
+            --red-500: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--slate-900);
+            color: var(--slate-300);
+        }
+
+        /* --- Login Page --- */
+        #login-page {
+            min-height: 100vh;
+        }
+        .login-btn {
+            background-color: var(--slate-800);
+            border: none;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .login-btn:hover {
+            background-color: var(--emerald-500);
+            color: var(--slate-900) !important;
+        }
+        
+        /* --- Header --- */
+        .main-header {
+            background-color: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        .nav-btn {
+            color: var(--slate-300);
+            background-color: transparent;
+            border: none;
+        }
+        .nav-btn.active {
+            background-color: var(--emerald-500);
+            color: var(--slate-900);
+        }
+        .nav-btn:hover:not(.active) {
+            background-color: var(--slate-700);
+            color: white;
+        }
+        .mobile-nav .nav-btn {
+            background-color: var(--slate-700);
+            color: var(--slate-300);
+        }
+        .mobile-nav .nav-btn.active {
+             background-color: var(--emerald-500);
+            color: var(--slate-900);
+        }
+
+        /* --- Table Layout --- */
+        .table-card {
+            aspect-ratio: 1 / 1;
+            transition: transform 0.2s;
+        }
+        .table-card:hover {
+            transform: scale(1.05);
+        }
+        .table-card.available { background-color: var(--slate-700); }
+        .table-card.available:hover { background-color: var(--slate-600); }
+        .table-card.occupied { background-color: var(--blue-500); }
+        .table-card.occupied:hover { background-color: #2563eb; }
+        .table-card.billing { background-color: var(--yellow-500); }
+        .table-card.billing:hover { background-color: #ca8a04; }
+
+        /* --- Dashboard --- */
+        .stat-card, .data-card {
+            background-color: var(--slate-800);
+        }
+        .stat-card i { font-size: 2.5rem; }
+        .list-group-item-dark {
+            background-color: rgba(51, 65, 85, 0.5);
+            border-color: var(--slate-700);
+        }
+
+        /* --- Kitchen Display --- */
+        .kot-column {
+            background-color: var(--slate-800);
+        }
+        .kot-card {
+            background-color: var(--slate-700);
+        }
+        
+        /* --- Inventory --- */
+        .table-dark {
+            --bs-table-bg: var(--slate-800);
+            --bs-table-border-color: var(--slate-700);
+            --bs-table-header-bg: var(--slate-700);
+        }
+        .table-hover > tbody > tr:hover > * {
+            --bs-table-hover-bg: rgba(51, 65, 85, 0.5);
+        }
+
+        /* --- Modals --- */
+        .modal-content {
+            background-color: var(--slate-800);
+            color: var(--slate-300);
+            border: 1px solid var(--slate-700);
+        }
+        .modal-header, .modal-footer {
+            border-bottom-color: var(--slate-700);
+            border-top-color: var(--slate-700);
+        }
+        .menu-item-btn {
+            background-color: var(--slate-700);
+            border: none;
+            color: white;
+        }
+        .menu-item-btn:hover {
+            background-color: var(--emerald-500);
+            color: var(--slate-900);
+        }
+        .order-summary, .bill-summary {
+             background-color: rgba(15, 23, 42, 0.5);
+        }
+        .order-item {
+            background-color: var(--slate-700);
+        }
+        .quantity-btn {
+            background-color: var(--slate-600);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border: none;
+        }
+        
+        /* --- Utility & Animations --- */
+        .icon-lg { font-size: 4rem; }
+        .text-emerald { color: var(--emerald-400); }
+        .text-slate-400 { color: var(--slate-400); }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Page -->
+    <div id="login-page" class="d-flex flex-column justify-content-center align-items-center p-4">
+        <div class="text-center mb-5">
+            <i class="bi bi-egg-fried icon-lg text-emerald mb-4"></i>
+            <h1 class="display-5 fw-bold text-white">Restaurant POS</h1>
+            <p class="text-slate-400 mt-2">Select a user role to start the demo.</p>
+        </div>
+        <div id="login-form" class="w-100" style="max-width: 380px;">
+            <!-- Login buttons will be injected here by JS -->
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="d-none">
+        <!-- Header -->
+        <header id="main-header" class="main-header shadow-lg sticky-top"></header>
+        
+        <!-- Main Content -->
+        <main id="main-content" class="container-fluid p-3 p-sm-4 p-lg-5 fade-in"></main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Order Modal -->
+    <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-4 fw-bold text-white" id="orderModalLabel"></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="max-height: 75vh;">
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <div id="menu-container" class="overflow-auto pe-2" style="max-height: 65vh;"></div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="order-summary p-3 rounded-3 d-flex flex-column h-100">
+                                <h3 class="fs-5 fw-bold text-white mb-3">Current Order</h3>
+                                <div id="current-order-items" class="flex-grow-1 overflow-auto pe-2" style="min-height: 200px;">
+                                    <p class="text-slate-400 text-center pt-5">No items added yet.</p>
+                                </div>
+                                <div class="mt-auto border-top border-secondary pt-3">
+                                    <div class="d-flex justify-content-between align-items-center fs-3 fw-bold text-white mb-3">
+                                        <span>Total:</span>
+                                        <span id="order-total">$0.00</span>
+                                    </div>
+                                    <button id="place-order-btn" class="btn btn-lg w-100 fw-bold" style="background-color: var(--emerald-500); color: var(--slate-900);" disabled>Place Order</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Billing Modal -->
+    <div class="modal fade" id="billingModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header">
+                <h5 class="modal-title fs-4 fw-bold text-white" id="billingModalLabel"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="bill-summary p-3 rounded-3 mb-3">
+                    <h3 class="fs-6 fw-bold text-white mb-2">Order Summary</h3>
+                    <div id="billing-items-summary"></div>
+                </div>
+                <div class="bill-summary p-3 rounded-3">
+                    <div id="billing-totals-summary"></div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                 <div id="payment-buttons" class="d-grid gap-3 w-100"></div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- JQuery and Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // --- STATE MANAGEMENT (Global Variables) ---
+            let state = {
+                currentUser: null,
+                currentPage: 'Tables',
+                tables: [],
+                orders: [], // Completed orders for reporting
+                kitchenOrders: [], // Live kitchen orders
+                inventory: [],
+                menu: {},
+                users: {},
+                activeModalTableId: null,
+            };
+
+            // --- MOCK DATA INITIALIZATION ---
+            function initializeData() {
+                state.menu = {
+                  Appetizers: [
+                    { id: 1, name: "Spring Rolls", price: 8.50, stock: 50 },
+                    { id: 2, name: "Garlic Bread", price: 6.00, stock: 100 },
+                    { id: 3, name: "Bruschetta", price: 9.00, stock: 40 },
+                  ],
+                  'Main Course': [
+                    { id: 4, name: "Spaghetti Carbonara", price: 18.00, stock: 30 },
+                    { id: 5, name: "Grilled Salmon", price: 24.50, stock: 25 },
+                    { id: 6, name: "Margherita Pizza", price: 15.00, stock: 40 },
+                    { id: 7, name: "Chicken Alfredo", price: 19.50, stock: 35 },
+                  ],
+                  Desserts: [
+                    { id: 8, name: "Tiramisu", price: 9.50, stock: 20 },
+                    { id: 9, name: "Cheesecake", price: 8.00, stock: 25 },
+                    { id: 10, name: "Chocolate Lava Cake", price: 10.00, stock: 15 },
+                  ],
+                  Drinks: [
+                    { id: 11, name: "Cola", price: 3.50, stock: 200 },
+                    { id: 12, name: "Orange Juice", price: 4.00, stock: 150 },
+                    { id: 13, name: "Espresso", price: 3.00, stock: 300 },
+                  ],
+                };
+
+                state.tables = Array.from({ length: 12 }, (_, i) => ({
+                  id: i + 1,
+                  name: `Table ${i + 1}`,
+                  status: 'available',
+                  order: [],
+                }));
+
+                state.inventory = Object.values(state.menu).flat().map(item => ({
+                    ...item,
+                    supplier: 'Gourmet Foods Inc.',
+                    lowStockThreshold: 10,
+                }));
+                
+                state.users = {
+                  admin: { name: 'Alex Green', role: 'Admin' },
+                  manager: { name: 'Brenda Smith', role: 'Manager' },
+                  waiter: { name: 'Charles Davis', role: 'Waiter' },
+                  kitchen: { name: 'Diana Prince', role: 'Kitchen' },
+                };
+            }
+
+            // --- RENDER FUNCTIONS ---
+            
+            // Main render function
+            function render() {
+                if (state.currentUser) {
+                    $('#login-page').addClass('d-none');
+                    $('#app').removeClass('d-none');
+                    renderHeader();
+                    renderPage();
+                } else {
+                    $('#login-page').removeClass('d-none');
+                    $('#app').addClass('d-none');
+                    renderLoginPage();
+                }
+            }
+
+            function renderLoginPage() {
+                const loginForm = $('#login-form');
+                loginForm.empty();
+                $.each(state.users, (key, user) => {
+                    loginForm.append(`
+                        <button class="btn btn-lg login-btn text-white w-100 p-3 mb-3 d-flex justify-content-between align-items-center" data-role="${key}">
+                            <span class="fw-semibold">Login as <span class="fw-bold">${user.role}</span></span>
+                            <i class="bi bi-box-arrow-in-right fs-5"></i>
+                        </button>
+                    `);
+                });
+            }
+
+            function renderHeader() {
+                const navLinks = {
+                    Admin: ['Dashboard', 'Tables', 'Kitchen', 'Inventory', 'Reports', 'Users'],
+                    Manager: ['Dashboard', 'Tables', 'Kitchen', 'Inventory', 'Reports'],
+                    Waiter: ['Tables'],
+                    Kitchen: ['Kitchen'],
+                };
+                const icons = {
+                    Dashboard: 'bi-bar-chart-line-fill',
+                    Tables: 'bi-grid-1x2-fill',
+                    Kitchen: 'bi-egg-fried',
+                    Inventory: 'bi-cart-fill',
+                    Reports: 'bi-file-earmark-bar-graph-fill',
+                    Users: 'bi-people-fill',
+                };
+                
+                const links = navLinks[state.currentUser.role];
+                const desktopNavHtml = links.map(page => `
+                    <button class="btn nav-btn rounded-pill px-3 py-2 me-2 nav-link ${state.currentPage === page ? 'active' : ''}" data-page="${page}">
+                        <i class="bi ${icons[page]} me-2"></i>${page}
+                    </button>
+                `).join('');
+
+                const mobileNavHtml = links.map(page => `
+                    <button class="btn nav-btn rounded-pill px-3 py-2 flex-shrink-0 nav-link ${state.currentPage === page ? 'active' : ''}" data-page="${page}">
+                        <i class="bi ${icons[page]} me-2"></i>${page}
+                    </button>
+                `).join('');
+
+                $('#main-header').html(`
+                    <nav class="navbar navbar-expand-md">
+                        <div class="container-fluid">
+                            <a class="navbar-brand text-white fw-bold fs-4 d-flex align-items-center" href="#">
+                                <i class="bi bi-egg-fried text-emerald me-2 fs-3"></i>
+                                <span class="d-none d-sm-inline">POS System</span>
+                            </a>
+                            <div class="d-none d-md-flex">
+                                ${desktopNavHtml}
+                            </div>
+                            <div class="d-flex align-items-center ms-auto">
+                                <div class="text-end me-3">
+                                    <div class="text-white fw-medium">${state.currentUser.name}</div>
+                                    <small class="text-slate-400">${state.currentUser.role}</small>
+                                </div>
+                                <button id="logout-btn" class="btn btn-danger">Logout</button>
+                            </div>
+                        </div>
+                    </nav>
+                    <div class="d-md-none mobile-nav d-flex overflow-auto p-2 gap-2">
+                        ${mobileNavHtml}
+                    </div>
+                `);
+            }
+            
+            function renderPage() {
+                $('#main-content').html(''); // Clear previous content
+                switch (state.currentPage) {
+                    case 'Dashboard': renderDashboardPage(); break;
+                    case 'Tables': renderTableLayoutPage(); break;
+                    case 'Kitchen': renderKitchenPage(); break;
+                    case 'Inventory': renderInventoryPage(); break;
+                    case 'Reports': renderPlaceholderPage('Reports & Analytics'); break;
+                    case 'Users': renderPlaceholderPage('User Management'); break;
+                    default: renderTableLayoutPage(); break;
+                }
+            }
+
+            function renderTableLayoutPage() {
+                const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">Table Layout</h1>
+                    <div id="table-grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-4">
+                        ${state.tables.map(table => `
+                            <div class="col">
+                                <button class="btn table-card w-100 rounded-4 shadow d-flex flex-column justify-content-center align-items-center fw-bold fs-4 text-white ${table.status}" data-table-id="${table.id}">
+                                    <span>${table.name}</span>
+                                    <span class="fs-6 fw-normal text-capitalize">${table.status}</span>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                $('#main-content').html(content);
+            }
+            
+            function renderDashboardPage() {
+                const completedOrders = state.orders.filter(o => o.status === 'completed');
+                const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
+                const activeKOTs = state.kitchenOrders.filter(o => o.status !== 'served');
+                const lowStockItems = state.inventory.filter(i => i.stock <= i.lowStockThreshold).length;
+
+                // Top Selling Items
+                const itemCounts = completedOrders
+                    .flatMap(o => o.items)
+                    .reduce((acc, item) => {
+                        acc[item.name] = (acc[item.name] || 0) + item.quantity;
+                        return acc;
+                    }, {});
+
+                const topSellingItems = Object.entries(itemCounts)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5)
+                    .map(([name, quantity]) => `
+                        <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                            ${name} <span class="badge bg-success rounded-pill">${quantity} sold</span>
+                        </li>
+                    `).join('');
+                
+                // Recent Orders
+                const recentOrders = state.orders.slice(-5).reverse().map(order => `
+                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${order.tableName}</div>
+                            <small class="text-slate-400">${order.items.length} items</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold fs-5">$${order.total.toFixed(2)}</div>
+                            <span class="badge bg-success-subtle text-success-emphasis rounded-pill">${order.status}</span>
+                        </div>
+                    </li>
+                `).join('');
+
+                const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">Dashboard</h1>
+                    <div class="row g-4 mb-4">
+                        <!-- Stat Cards -->
+                        <div class="col-md-6 col-xl-3">
+                            <div class="stat-card p-4 rounded-4 shadow d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-slate-400 mb-1">Total Sales</p>
+                                    <p class="fs-2 fw-bold text-white mb-0">$${totalSales.toFixed(2)}</p>
+                                </div>
+                                <i class="bi bi-cash-coin text-emerald"></i>
+                            </div>
+                        </div>
+                         <div class="col-md-6 col-xl-3">
+                            <div class="stat-card p-4 rounded-4 shadow d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-slate-400 mb-1">Active Orders</p>
+                                    <p class="fs-2 fw-bold text-white mb-0">${activeKOTs.length}</p>
+                                </div>
+                                <i class="bi bi-clock-history" style="color: var(--blue-500);"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="stat-card p-4 rounded-4 shadow d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-slate-400 mb-1">Completed Orders</p>
+                                    <p class="fs-2 fw-bold text-white mb-0">${completedOrders.length}</p>
+                                </div>
+                                <i class="bi bi-check-circle-fill" style="color: #16a34a;"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="stat-card p-4 rounded-4 shadow d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-slate-400 mb-1">Low Stock Items</p>
+                                    <p class="fs-2 fw-bold text-white mb-0">${lowStockItems}</p>
+                                </div>
+                                <i class="bi bi-exclamation-triangle-fill" style="color: var(--red-500);"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-4">
+                        <!-- Data Sections -->
+                        <div class="col-lg-6">
+                            <div class="data-card p-4 rounded-4 shadow">
+                                <h2 class="fs-5 fw-bold text-white mb-3">Top Selling Items</h2>
+                                <ul class="list-group">${topSellingItems || '<li class="list-group-item list-group-item-dark">No sales data yet.</li>'}</ul>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="data-card p-4 rounded-4 shadow">
+                                <h2 class="fs-5 fw-bold text-white mb-3">Recent Orders</h2>
+                                <ul class="list-group">${recentOrders || '<li class="list-group-item list-group-item-dark">No completed orders yet.</li>'}</ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $('#main-content').html(content);
+            }
+
+            function renderKitchenPage() {
+                const columns = {
+                    New: state.kitchenOrders.filter(o => o.status === 'new'),
+                    Preparing: state.kitchenOrders.filter(o => o.status === 'preparing'),
+                    Ready: state.kitchenOrders.filter(o => o.status === 'ready'),
+                };
+
+                let columnsHtml = '';
+                for (const [status, orders] of Object.entries(columns)) {
+                    columnsHtml += `
+                        <div class="col-md-4">
+                            <div class="kot-column rounded-4 d-flex flex-column h-100">
+                                <h2 class="fs-5 fw-bold text-white p-3 border-bottom border-secondary">${status} (${orders.length})</h2>
+                                <div class="p-3 space-y-4 overflow-auto">
+                                    ${orders.map(order => {
+                                        let actionButton = '';
+                                        if (status === 'New') actionButton = `<button class="btn btn-sm btn-primary kot-action-btn" data-order-id="${order.id}" data-action="preparing">Start</button>`;
+                                        if (status === 'Preparing') actionButton = `<button class="btn btn-sm btn-success kot-action-btn" data-order-id="${order.id}" data-action="ready">Ready</button>`;
+                                        if (status === 'Ready') actionButton = `<button class="btn btn-sm btn-secondary kot-action-btn" data-order-id="${order.id}" data-action="served">Serve</button>`;
+
+                                        return `
+                                            <div class="kot-card p-3 rounded-3 shadow-sm mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h3 class="fw-bold text-white fs-6 mb-0">${order.tableName}</h3>
+                                                    <small class="text-slate-400">${new Date(order.timestamp).toLocaleTimeString()}</small>
+                                                </div>
+                                                <ul class="list-unstyled mb-3">
+                                                    ${order.items.map(item => `
+                                                        <li><span class="fw-semibold text-emerald">${item.quantity}x</span> ${item.name}</li>
+                                                    `).join('')}
+                                                </ul>
+                                                <div class="text-end">${actionButton}</div>
+                                            </div>
+                                        `
+                                    }).join('') || `<p class="text-slate-400 text-center p-5">No orders</p>`}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">Kitchen Orders (KOT)</h1>
+                    <div class="row" style="min-height: 75vh;">${columnsHtml}</div>
+                `;
+                 $('#main-content').html(content);
+            }
+            
+            function renderInventoryPage() {
+                const getCategory = (itemId) => Object.entries(state.menu).find(([, items]) => items.some(i => i.id === itemId))?.[0] || 'N/A';
+                
+                const tableRows = state.inventory.map(item => `
+                    <tr class="align-middle">
+                        <td class="p-3 fw-medium text-white">${item.name}</td>
+                        <td class="p-3">${getCategory(item.id)}</td>
+                        <td class="p-3 text-end">$${item.price.toFixed(2)}</td>
+                        <td class="p-3 text-end font-monospace">${item.stock}</td>
+                        <td class="p-3">
+                             ${item.stock > item.lowStockThreshold 
+                                ? `<span class="badge bg-success-subtle text-success-emphasis rounded-pill">In Stock</span>`
+                                : `<span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Low Stock</span>`
+                             }
+                        </td>
+                        <td class="p-3 text-center">
+                            <button class="btn btn-sm btn-outline-success">Restock</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">Inventory Management</h1>
+                    <div class="data-card rounded-4 shadow overflow-hidden">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover mb-0">
+                                <thead class="text-uppercase small">
+                                    <tr>
+                                        <th class="p-3">Item Name</th>
+                                        <th class="p-3">Category</th>
+                                        <th class="p-3 text-end">Unit Price</th>
+                                        <th class="p-3 text-end">Stock Quantity</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tableRows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                 $('#main-content').html(content);
+            }
+
+            function renderPlaceholderPage(title) {
+                const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">${title}</h1>
+                    <div class="data-card p-5 rounded-4 text-center">
+                        <i class="bi bi-display fs-1 text-slate-400 mb-3"></i>
+                        <p class="text-slate-400 fs-5">This is a placeholder for the ${title} page.</p>
+                        <p class="text-slate-400 small">Full functionality would be implemented here.</p>
+                    </div>
+                `;
+                $('#main-content').html(content);
+            }
+            
+            // --- MODAL RENDER FUNCTIONS ---
+            
+            function openOrderModal(tableId) {
+                state.activeModalTableId = tableId;
+                const table = state.tables.find(t => t.id === tableId);
+                $('#orderModalLabel').text(`Order for ${table.name}`);
+
+                // Render Menu
+                const menuContainer = $('#menu-container');
+                menuContainer.empty();
+                $.each(state.menu, (category, items) => {
+                    const itemsHtml = items.map(item => `
+                        <div class="col">
+                            <button class="btn menu-item-btn w-100 text-start p-3 rounded-3" data-item-id="${item.id}">
+                                <div class="fw-semibold">${item.name}</div>
+                                <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
+                            </button>
+                        </div>
+                    `).join('');
+                    menuContainer.append(`
+                        <h4 class="text-emerald fw-bold fs-6 mb-2">${category}</h4>
+                        <div class="row row-cols-1 row-cols-sm-2 g-2 mb-3">${itemsHtml}</div>
+                    `);
+                });
+
+                updateOrderSummary(table.order);
+                $('#orderModal').modal('show');
+            }
+
+            function updateOrderSummary(currentOrder) {
+                const orderItemsContainer = $('#current-order-items');
+                if (!currentOrder || currentOrder.length === 0) {
+                    orderItemsContainer.html('<p class="text-slate-400 text-center pt-5">No items added yet.</p>');
+                } else {
+                    orderItemsContainer.empty();
+                    currentOrder.forEach(item => {
+                        orderItemsContainer.append(`
+                            <div class="order-item d-flex justify-content-between align-items-center p-2 rounded-3 mb-2">
+                                <div>
+                                    <div class="fw-semibold text-white">${item.name}</div>
+                                    <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-sm rounded-circle quantity-btn" data-item-id="${item.id}" data-change="-1">-</button>
+                                    <span class="fw-bold text-white" style="min-width: 20px; text-align: center;">${item.quantity}</span>
+                                    <button class="btn btn-sm rounded-circle quantity-btn" data-item-id="${item.id}" data-change="1">+</button>
+                                </div>
+                            </div>
+                        `);
+                    });
+                }
+                
+                const total = currentOrder.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                $('#order-total').text(`$${total.toFixed(2)}`);
+                $('#place-order-btn').prop('disabled', currentOrder.length === 0);
+            }
+
+            function openBillingModal(tableId) {
+                state.activeModalTableId = tableId;
+                const table = state.tables.find(t => t.id === tableId);
+                const subtotal = table.order.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const tax = subtotal * 0.08;
+                const serviceCharge = subtotal * 0.10;
+                const total = subtotal + tax + serviceCharge;
+
+                $('#billingModalLabel').text(`Bill for ${table.name}`);
+                
+                $('#billing-items-summary').html(
+                    table.order.map(item => `
+                        <div class="d-flex justify-content-between py-1 text-slate-300">
+                            <span>${item.name} x ${item.quantity}</span>
+                            <span>$${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                    `).join('')
+                );
+
+                $('#billing-totals-summary').html(`
+                    <div class="d-flex justify-content-between text-slate-300"><span>Subtotal:</span> <span>$${subtotal.toFixed(2)}</span></div>
+                    <div class="d-flex justify-content-between text-slate-300"><span>Tax (8%):</span> <span>$${tax.toFixed(2)}</span></div>
+                    <div class="d-flex justify-content-between text-slate-300"><span>Service Charge (10%):</span> <span>$${serviceCharge.toFixed(2)}</span></div>
+                    <hr class="border-secondary">
+                    <div class="d-flex justify-content-between text-white fs-4 fw-bold"><span>Total:</span> <span>$${total.toFixed(2)}</span></div>
+                `);
+
+                $('#payment-buttons').html(`
+                    <button class="btn btn-lg btn-success payment-btn" data-total="${total}">Pay with Card</button>
+                    <button class="btn btn-lg btn-primary payment-btn" data-total="${total}">Pay with Cash</button>
+                `);
+
+                $('#billingModal').modal('show');
+            }
+
+
+            // --- EVENT HANDLERS ---
+            
+            // Login
+            $('#login-form').on('click', '.login-btn', function() {
+                const role = $(this).data('role');
+                state.currentUser = state.users[role];
+                
+                switch (state.currentUser.role) {
+                    case 'Admin':
+                    case 'Manager':
+                        state.currentPage = 'Dashboard';
+                        break;
+                    case 'Kitchen':
+                        state.currentPage = 'Kitchen';
+                        break;
+                    default:
+                        state.currentPage = 'Tables';
+                }
+                render();
+            });
+
+            // Logout
+            $('body').on('click', '#logout-btn', function() {
+                state.currentUser = null;
+                render();
+            });
+            
+            // Navigation
+            $('body').on('click', '.nav-link', function() {
+                state.currentPage = $(this).data('page');
+                renderHeader(); // Re-render header to update active class
+                renderPage();
+            });
+
+            // Table Selection
+            $('body').on('click', '.table-card', function() {
+                const tableId = $(this).data('table-id');
+                const table = state.tables.find(t => t.id === tableId);
+                if (table.status === 'billing') {
+                    openBillingModal(tableId);
+                } else {
+                    openOrderModal(tableId);
+                }
+            });
+
+            // Order Modal: Add Item
+            $('#orderModal').on('click', '.menu-item-btn', function() {
+                const itemId = $(this).data('item-id');
+                const table = state.tables.find(t => t.id === state.activeModalTableId);
+                const itemData = Object.values(state.menu).flat().find(i => i.id === itemId);
+
+                const existingItem = table.order.find(orderItem => orderItem.id === itemId);
+                if (existingItem) {
+                    existingItem.quantity++;
+                } else {
+                    table.order.push({ ...itemData, quantity: 1 });
+                }
+                updateOrderSummary(table.order);
+            });
+            
+            // Order Modal: Update Quantity
+            $('#orderModal').on('click', '.quantity-btn', function() {
+                const itemId = $(this).data('item-id');
+                const change = $(this).data('change');
+                const table = state.tables.find(t => t.id === state.activeModalTableId);
+                const itemInOrder = table.order.find(orderItem => orderItem.id === itemId);
+
+                if (itemInOrder) {
+                    itemInOrder.quantity += change;
+                    if (itemInOrder.quantity <= 0) {
+                        table.order = table.order.filter(i => i.id !== itemId);
+                    }
+                }
+                updateOrderSummary(table.order);
+            });
+
+            // Order Modal: Place Order
+            $('#place-order-btn').on('click', function() {
+                const table = state.tables.find(t => t.id === state.activeModalTableId);
+                if (table.order.length > 0) {
+                    table.status = 'occupied';
+                    
+                    const newKOT = {
+                        id: Date.now(),
+                        tableId: table.id,
+                        tableName: table.name,
+                        items: table.order,
+                        status: 'new',
+                        timestamp: new Date().toISOString(),
+                    };
+                    state.kitchenOrders.unshift(newKOT);
+                    
+                    $('#orderModal').modal('hide');
+                    render();
+                }
+            });
+
+            // Billing Modal: Process Payment
+            $('#billingModal').on('click', '.payment-btn', function() {
+                const total = $(this).data('total');
+                const table = state.tables.find(t => t.id === state.activeModalTableId);
+                
+                // Update Inventory
+                table.order.forEach(orderItem => {
+                    const inventoryItem = state.inventory.find(inv => inv.id === orderItem.id);
+                    if (inventoryItem) {
+                        inventoryItem.stock -= orderItem.quantity;
+                    }
+                });
+                
+                // Create completed order record
+                state.orders.push({
+                    id: Date.now(),
+                    tableId: table.id,
+                    tableName: table.name,
+                    items: table.order,
+                    total: parseFloat(total),
+                    status: 'completed',
+                    timestamp: new Date().toISOString(),
+                });
+                
+                // Reset table
+                table.status = 'available';
+                table.order = [];
+
+                $('#billingModal').modal('hide');
+                render();
+            });
+
+            // Kitchen: Update Order Status
+            $('body').on('click', '.kot-action-btn', function() {
+                const orderId = $(this).data('order-id');
+                const newStatus = $(this).data('action');
+                const order = state.kitchenOrders.find(o => o.id === orderId);
+
+                if (newStatus === 'served') {
+                    state.kitchenOrders = state.kitchenOrders.filter(o => o.id !== orderId);
+                    const table = state.tables.find(t => t.id === order.tableId);
+                    if (table) table.status = 'billing';
+                } else {
+                    if (order) order.status = newStatus;
+                }
+                render();
+            });
+
+
+            // --- INITIALIZATION ---
+            initializeData();
+            render();
+        });
+    </script>
+</body>
+</html>
