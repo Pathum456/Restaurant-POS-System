@@ -342,6 +342,7 @@
                             <select class="form-select form-control-dark" id="user-role" required>
                                 <option value="Waiter">Waiter</option>
                                 <option value="Kitchen">Kitchen</option>
+                                <option value="Cashier">Cashier</option>
                                 <option value="Manager">Manager</option>
                                 <option value="Admin">Admin</option>
                             </select>
@@ -519,6 +520,7 @@
                   'manager': { id: 'manager', name: 'Brenda Smith', role: 'Manager' },
                   'waiter': { id: 'waiter', name: 'Charles Davis', role: 'Waiter' },
                   'kitchen': { id: 'kitchen', name: 'Diana Prince', role: 'Kitchen' },
+                  'cashier': { id: 'cashier', name: 'Edward Frank', role: 'Cashier' },
                 };
             }
 
@@ -592,6 +594,7 @@
                     Manager: ['Dashboard', 'Tables', 'Kitchen', 'Inventory', 'Reports'],
                     Waiter: ['Tables'],
                     Kitchen: ['Kitchen'],
+                    Cashier: ['Dashboard', 'Tables'],
                 };
                 const icons = {
                     Dashboard: 'bi-bar-chart-line-fill',
@@ -1109,6 +1112,7 @@
                 switch (state.currentUser.role) {
                     case 'Admin':
                     case 'Manager':
+                    case 'Cashier':
                         state.currentPage = 'Dashboard';
                         break;
                     case 'Kitchen':
@@ -1136,10 +1140,34 @@
             $('body').on('click', '.table-card', function() {
                 const tableId = $(this).data('table-id');
                 const table = state.tables.find(t => t.id === tableId);
+                const userRole = state.currentUser.role;
+
                 if (table.status === 'billing') {
-                    openBillingModal(tableId);
+                    if (userRole === 'Cashier' || userRole === 'Admin' || userRole === 'Manager') {
+                        openBillingModal(tableId);
+                    } else {
+                        Swal.fire({
+                            title: 'Billing in Progress',
+                            text: `The bill for ${table.name} is ready. The cashier will process the payment.`,
+                            icon: 'info'
+                        });
+                    }
+                } else if (table.status === 'available' || table.status === 'occupied') {
+                    if (userRole === 'Waiter' || userRole === 'Admin' || userRole === 'Manager') {
+                         openOrderModal(tableId);
+                    } else {
+                         Swal.fire({
+                            title: 'Action Not Allowed',
+                            text: 'Only Waiters, Managers, or Admins can place or modify orders.',
+                            icon: 'warning'
+                        });
+                    }
                 } else {
-                    openOrderModal(tableId);
+                     Swal.fire({
+                        title: `Table Status: ${table.status}`,
+                        text: `${table.name} is currently ${table.status}.`,
+                        icon: 'info'
+                    });
                 }
             });
 
@@ -1552,5 +1580,4 @@
     </script>
 </body>
 </html>
-
 
