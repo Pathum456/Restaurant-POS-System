@@ -441,7 +441,6 @@
         </div>
     </div>
 
-
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3"></div>
 
@@ -457,6 +456,16 @@
 
     <script>
         $(document).ready(function() {
+            // --- AUDIO CONTEXT for Web Audio API ---
+            let audioCtx;
+            // A gesture from the user is required to start the audio context.
+            // We'll initialize it on the first login click.
+            function initAudio() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            
             // --- CHART.JS DEFAULTS FOR DARK THEME ---
             Chart.defaults.color = 'rgba(148, 163, 184, 0.7)'; // slate-400
             Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.5)'; // slate-700 with opacity
@@ -525,6 +534,41 @@
             }
 
             // --- HELPER FUNCTIONS ---
+            function playSound(type) {
+                if (!audioCtx) {
+                    console.warn("AudioContext not initialized. User interaction needed.");
+                    return;
+                }
+
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.01);
+                
+                oscillator.type = 'sine';
+
+                switch (type) {
+                    case 'new-order':
+                        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+                        break;
+                    case 'order-ready':
+                        oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                        setTimeout(() => { oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.15); }, 150);
+                        break;
+                    case 'billing-ready':
+                         oscillator.frequency.setValueAtTime(698.46, audioCtx.currentTime); // F5
+                        break;
+                }
+                
+                oscillator.start(audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+                oscillator.stop(audioCtx.currentTime + 0.5);
+            }
+            
             function showToast(message, type = 'success') {
                 const toastId = `toast-${Date.now()}`;
                 const toastBg = type === 'success' ? 'bg-success' : 'bg-danger';
@@ -1106,6 +1150,7 @@
             
             // Login
             $('#login-form').on('click', '.login-btn', function() {
+                initAudio(); // Initialize AudioContext on first user interaction
                 const roleId = $(this).data('role-id');
                 state.currentUser = Object.values(state.users).find(u => u.id === roleId);
                 
@@ -1224,6 +1269,7 @@
                 if (existingNewKot) {
                     existingNewKot.items = [...newCompleteOrder];
                     showToast(`Order for ${table.name} has been updated.`);
+                    playSound('new-order');
                 } else {
                     const itemsForNewKot = calculateOrderDifference(table.order, newCompleteOrder);
                     
@@ -1237,6 +1283,7 @@
                             timestamp: new Date().toISOString(),
                         });
                         showToast(`New items for ${table.name} sent to kitchen.`);
+                        playSound('new-order');
                     } else {
                         showToast(`No new items to send for ${table.name}.`);
                     }
@@ -1325,6 +1372,7 @@
                             const hasPendingKots = state.kitchenOrders.some(ko => ko.tableId === table.id);
                             if (!hasPendingKots) {
                                 table.status = 'billing';
+                                playSound('billing-ready');
                             }
                         }
                         showToast(`${order.tableName}'s order has been served.`);
@@ -1335,11 +1383,12 @@
                             text: `Confirm that all items for ${order.tableName} are prepared.`,
                             icon: 'question',
                             showCancelButton: true,
-                            confirmButtonText: 'Yes, it\'s ready!',
+                            confirmButtonText: "Yes, it's ready!",
                             cancelButtonText: 'Not yet'
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 order.status = 'ready';
+                                playSound('order-ready');
                                 Swal.fire({
                                     toast: true,
                                     position: 'top-end',
@@ -1570,6 +1619,13 @@
                 }
                 $('#tableModal').modal('hide');
                 render();
+            });
+            
+            // Handle focus after modals close to prevent accessibility issues
+            $('#orderModal, #billingModal').on('hidden.bs.modal', function () {
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
             });
 
 
