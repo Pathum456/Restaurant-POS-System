@@ -111,6 +111,12 @@
             background-color: var(--slate-700);
         }
         
+        /* --- User/Reports Page --- */
+        .user-card {
+            background-color: var(--slate-800);
+            border: 1px solid var(--slate-700);
+        }
+
         /* --- Inventory --- */
         .table-dark {
             --bs-table-bg: var(--slate-800);
@@ -405,8 +411,8 @@
                     case 'Tables': renderTableLayoutPage(); break;
                     case 'Kitchen': renderKitchenPage(); break;
                     case 'Inventory': renderInventoryPage(); break;
-                    case 'Reports': renderPlaceholderPage('Reports & Analytics'); break;
-                    case 'Users': renderPlaceholderPage('User Management'); break;
+                    case 'Reports': renderReportsPage(); break;
+                    case 'Users': renderUserManagementPage(); break;
                     default: renderTableLayoutPage(); break;
                 }
             }
@@ -624,6 +630,77 @@
                         <i class="bi bi-display fs-1 text-slate-400 mb-3"></i>
                         <p class="text-slate-400 fs-5">This is a placeholder for the ${title} page.</p>
                         <p class="text-slate-400 small">Full functionality would be implemented here.</p>
+                    </div>
+                `;
+                $('#main-content').html(content);
+            }
+
+            function renderUserManagementPage() {
+                const userCardsHtml = Object.values(state.users).map(user => `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="user-card p-3 rounded-4 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h3 class="fs-6 fw-bold text-white mb-0">${user.name}</h3>
+                                <p class="text-slate-400 mb-0">${user.role}</p>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary me-2">Edit</button>
+                                <button class="btn btn-sm btn-outline-danger">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                const content = `
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="text-3xl fw-bold text-white mb-0">User Management</h1>
+                        <button class="btn btn-success d-flex align-items-center">
+                            <i class="bi bi-plus-circle me-2"></i> Add New User
+                        </button>
+                    </div>
+                    <div class="row g-3">
+                        ${userCardsHtml}
+                    </div>
+                `;
+                $('#main-content').html(content);
+            }
+
+            function renderReportsPage() {
+                 const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">Reports & Analytics</h1>
+                     <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="data-card p-4 rounded-4 shadow h-100">
+                                <h2 class="fs-5 fw-bold text-white mb-3">Sales Over Time</h2>
+                                <div class="d-flex justify-content-center align-items-center bg-dark rounded h-75">
+                                    <p class="text-slate-400"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="data-card p-4 rounded-4 shadow">
+                                <h2 class="fs-5 fw-bold text-white mb-3">Key Metrics</h2>
+                                <ul class="list-group">
+                                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                                        Average Order Value
+                                        <span class="fw-bold fs-5 text-emerald">$45.80</span>
+                                    </li>
+                                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                                        Peak Hours
+                                        <span class="fw-bold text-white">7-9 PM</span>
+                                    </li>
+                                     <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                                        Busiest Day
+                                        <span class="fw-bold text-white">Saturday</span>
+                                    </li>
+                                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                                        Total Customers Today
+                                        <span class="fw-bold text-white">124</span>
+                                    </li>
+                                </ul>
+                                <button class="btn btn-outline-light w-100 mt-3">Export Full Report</button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 $('#main-content').html(content);
@@ -875,3 +952,4 @@
     </script>
 </body>
 </html>
+
