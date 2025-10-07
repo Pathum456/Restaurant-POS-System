@@ -137,6 +137,17 @@
             border-bottom-color: var(--slate-700);
             border-top-color: var(--slate-700);
         }
+        .form-control-dark {
+            background-color: var(--slate-700);
+            color: white;
+            border-color: var(--slate-600);
+        }
+        .form-control-dark:focus {
+            background-color: var(--slate-700);
+            color: white;
+            border-color: var(--emerald-500);
+            box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25);
+        }
         .menu-item-btn {
             background-color: var(--slate-700);
             border: none;
@@ -160,6 +171,11 @@
             border: none;
         }
         
+        /* --- Toast Notifications --- */
+        .toast-container {
+            z-index: 1100; /* Higher than modals */
+        }
+
         /* --- Utility & Animations --- */
         .icon-lg { font-size: 4rem; }
         .text-emerald { color: var(--emerald-400); }
@@ -254,13 +270,106 @@
       </div>
     </div>
 
+    <!-- User Management Modal -->
+    <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <form id="user-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title fs-4 fw-bold text-white" id="userModalLabel">Add New User</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="user-id">
+                        <div class="mb-3">
+                            <label for="user-name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control form-control-dark" id="user-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="user-role" class="form-label">Role</label>
+                            <select class="form-select form-control-dark" id="user-role" required>
+                                <option value="Waiter">Waiter</option>
+                                <option value="Kitchen">Kitchen</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Inventory Management Modal -->
+    <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <form id="inventory-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title fs-4 fw-bold text-white" id="inventoryModalLabel">Add New Inventory Item</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="item-name" class="form-label">Item Name</label>
+                            <input type="text" class="form-control form-control-dark" id="item-name" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="item-category" class="form-label">Category</label>
+                                <select class="form-select form-control-dark" id="item-category" required>
+                                    <!-- Options populated by JS -->
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="item-price" class="form-label">Price</label>
+                                <input type="number" class="form-control form-control-dark" id="item-price" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                             <div class="col-md-6 mb-3">
+                                <label for="item-stock" class="form-label">Stock Quantity</label>
+                                <input type="number" class="form-control form-control-dark" id="item-stock" min="0" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="item-low-stock" class="form-label">Low Stock Threshold</label>
+                                <input type="number" class="form-control form-control-dark" id="item-low-stock" min="0" required>
+                            </div>
+                        </div>
+                         <div class="mb-3">
+                            <label for="item-supplier" class="form-label">Supplier</label>
+                            <input type="text" class="form-control form-control-dark" id="item-supplier" value="Gourmet Foods Inc.">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
 
     <!-- JQuery and Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         $(document).ready(function() {
+            // --- CHART.JS DEFAULTS FOR DARK THEME ---
+            Chart.defaults.color = 'rgba(148, 163, 184, 0.7)'; // slate-400
+            Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.5)'; // slate-700 with opacity
+
             // --- STATE MANAGEMENT (Global Variables) ---
             let state = {
                 currentUser: null,
@@ -272,6 +381,7 @@
                 menu: {},
                 users: {},
                 activeModalTableId: null,
+                salesChart: null,
             };
 
             // --- MOCK DATA INITIALIZATION ---
@@ -314,11 +424,31 @@
                 }));
                 
                 state.users = {
-                  admin: { name: 'Alex Green', role: 'Admin' },
-                  manager: { name: 'Brenda Smith', role: 'Manager' },
-                  waiter: { name: 'Charles Davis', role: 'Waiter' },
-                  kitchen: { name: 'Diana Prince', role: 'Kitchen' },
+                  'admin': { id: 'admin', name: 'Alex Green', role: 'Admin' },
+                  'manager': { id: 'manager', name: 'Brenda Smith', role: 'Manager' },
+                  'waiter': { id: 'waiter', name: 'Charles Davis', role: 'Waiter' },
+                  'kitchen': { id: 'kitchen', name: 'Diana Prince', role: 'Kitchen' },
                 };
+            }
+
+            // --- HELPER FUNCTIONS ---
+            function showToast(message, type = 'success') {
+                const toastId = `toast-${Date.now()}`;
+                const toastBg = type === 'success' ? 'bg-success' : 'bg-danger';
+                const toastHtml = `
+                    <div id="${toastId}" class="toast align-items-center text-white ${toastBg} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">${message}</div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                `;
+                $('.toast-container').append(toastHtml);
+                const toastElement = new bootstrap.Toast($(`#${toastId}`));
+                toastElement.show();
+                $(`#${toastId}`).on('hidden.bs.toast', function () {
+                    $(this).remove();
+                });
             }
 
             // --- RENDER FUNCTIONS ---
@@ -342,7 +472,7 @@
                 loginForm.empty();
                 $.each(state.users, (key, user) => {
                     loginForm.append(`
-                        <button class="btn btn-lg login-btn text-white w-100 p-3 mb-3 d-flex justify-content-between align-items-center" data-role="${key}">
+                        <button class="btn btn-lg login-btn text-white w-100 p-3 mb-3 d-flex justify-content-between align-items-center" data-role-id="${user.id}">
                             <span class="fw-semibold">Login as <span class="fw-bold">${user.role}</span></span>
                             <i class="bi bi-box-arrow-in-right fs-5"></i>
                         </button>
@@ -406,6 +536,11 @@
             
             function renderPage() {
                 $('#main-content').html(''); // Clear previous content
+                if (state.salesChart) {
+                    state.salesChart.destroy();
+                    state.salesChart = null;
+                }
+
                 switch (state.currentPage) {
                     case 'Dashboard': renderDashboardPage(); break;
                     case 'Tables': renderTableLayoutPage(); break;
@@ -595,13 +730,18 @@
                              }
                         </td>
                         <td class="p-3 text-center">
-                            <button class="btn btn-sm btn-outline-success">Restock</button>
+                            <button class="btn btn-sm btn-outline-success restock-btn" data-item-id="${item.id}">Restock</button>
                         </td>
                     </tr>
                 `).join('');
 
                 const content = `
-                    <h1 class="text-3xl fw-bold text-white mb-4">Inventory Management</h1>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="text-3xl fw-bold text-white mb-0">Inventory Management</h1>
+                        <button class="btn btn-success d-flex align-items-center" id="add-inventory-item-btn">
+                            <i class="bi bi-plus-circle me-2"></i> Add New Item
+                        </button>
+                    </div>
                     <div class="data-card rounded-4 shadow overflow-hidden">
                         <div class="table-responsive">
                             <table class="table table-dark table-hover mb-0">
@@ -623,18 +763,6 @@
                  $('#main-content').html(content);
             }
 
-            function renderPlaceholderPage(title) {
-                const content = `
-                    <h1 class="text-3xl fw-bold text-white mb-4">${title}</h1>
-                    <div class="data-card p-5 rounded-4 text-center">
-                        <i class="bi bi-display fs-1 text-slate-400 mb-3"></i>
-                        <p class="text-slate-400 fs-5">This is a placeholder for the ${title} page.</p>
-                        <p class="text-slate-400 small">Full functionality would be implemented here.</p>
-                    </div>
-                `;
-                $('#main-content').html(content);
-            }
-
             function renderUserManagementPage() {
                 const userCardsHtml = Object.values(state.users).map(user => `
                     <div class="col-md-6 col-lg-4">
@@ -644,8 +772,8 @@
                                 <p class="text-slate-400 mb-0">${user.role}</p>
                             </div>
                             <div>
-                                <button class="btn btn-sm btn-outline-primary me-2">Edit</button>
-                                <button class="btn btn-sm btn-outline-danger">Remove</button>
+                                <button class="btn btn-sm btn-outline-primary me-2 edit-user-btn" data-user-id="${user.id}">Edit</button>
+                                <button class="btn btn-sm btn-outline-danger remove-user-btn" data-user-id="${user.id}">Remove</button>
                             </div>
                         </div>
                     </div>
@@ -654,7 +782,7 @@
                 const content = `
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h1 class="text-3xl fw-bold text-white mb-0">User Management</h1>
-                        <button class="btn btn-success d-flex align-items-center">
+                        <button class="btn btn-success d-flex align-items-center" id="add-user-btn">
                             <i class="bi bi-plus-circle me-2"></i> Add New User
                         </button>
                     </div>
@@ -667,43 +795,51 @@
 
             function renderReportsPage() {
                  const content = `
-                    <h1 class="text-3xl fw-bold text-white mb-4">Reports & Analytics</h1>
+                    <h1 class="text-3xl fw-bold text-white mb-4">Sales Report</h1>
                      <div class="row g-4">
-                        <div class="col-lg-8">
-                            <div class="data-card p-4 rounded-4 shadow h-100">
-                                <h2 class="fs-5 fw-bold text-white mb-3">Sales Over Time</h2>
-                                <div class="d-flex justify-content-center align-items-center bg-dark rounded h-75">
-                                    <p class="text-slate-400"></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4">
+                        <div class="col-12">
                             <div class="data-card p-4 rounded-4 shadow">
-                                <h2 class="fs-5 fw-bold text-white mb-3">Key Metrics</h2>
-                                <ul class="list-group">
-                                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
-                                        Average Order Value
-                                        <span class="fw-bold fs-5 text-emerald">$45.80</span>
-                                    </li>
-                                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
-                                        Peak Hours
-                                        <span class="fw-bold text-white">7-9 PM</span>
-                                    </li>
-                                     <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
-                                        Busiest Day
-                                        <span class="fw-bold text-white">Saturday</span>
-                                    </li>
-                                    <li class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
-                                        Total Customers Today
-                                        <span class="fw-bold text-white">124</span>
-                                    </li>
-                                </ul>
-                                <button class="btn btn-outline-light w-100 mt-3">Export Full Report</button>
+                                <h2 class="fs-5 fw-bold text-white mb-3">Sales Over Time (Last 7 Days)</h2>
+                                <div style="position: relative; height:60vh">
+                                    <canvas id="salesChart"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
                 `;
                 $('#main-content').html(content);
+                
+                // Initialize Chart
+                const ctx = document.getElementById('salesChart').getContext('2d');
+                const labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Today'];
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Sales ($)',
+                        data: [650, 590, 800, 810, 560, 550, state.orders.reduce((sum, o) => sum + o.total, 0)],
+                        fill: false,
+                        borderColor: 'rgb(16, 185, 129)',
+                        tension: 0.1
+                    }]
+                };
+                state.salesChart = new Chart(ctx, { 
+                    type: 'line', 
+                    data: data, 
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
             }
             
             // --- MODAL RENDER FUNCTIONS ---
@@ -719,8 +855,8 @@
                 $.each(state.menu, (category, items) => {
                     const itemsHtml = items.map(item => `
                         <div class="col">
-                            <button class="btn menu-item-btn w-100 text-start p-3 rounded-3" data-item-id="${item.id}">
-                                <div class="fw-semibold">${item.name}</div>
+                            <button class="btn menu-item-btn w-100 text-start p-3 rounded-3" data-item-id="${item.id}" ${item.stock <= 0 ? 'disabled' : ''}>
+                                <div class="fw-semibold">${item.name} ${item.stock <= 0 ? '<span class="text-danger small">(Out of Stock)</span>' : ''}</div>
                                 <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
                             </button>
                         </div>
@@ -803,8 +939,8 @@
             
             // Login
             $('#login-form').on('click', '.login-btn', function() {
-                const role = $(this).data('role');
-                state.currentUser = state.users[role];
+                const roleId = $(this).data('role-id');
+                state.currentUser = Object.values(state.users).find(u => u.id === roleId);
                 
                 switch (state.currentUser.role) {
                     case 'Admin':
@@ -829,8 +965,7 @@
             // Navigation
             $('body').on('click', '.nav-link', function() {
                 state.currentPage = $(this).data('page');
-                renderHeader(); // Re-render header to update active class
-                renderPage();
+                render();
             });
 
             // Table Selection
@@ -885,13 +1020,14 @@
                         id: Date.now(),
                         tableId: table.id,
                         tableName: table.name,
-                        items: table.order,
+                        items: [...table.order], // Create a copy
                         status: 'new',
                         timestamp: new Date().toISOString(),
                     };
                     state.kitchenOrders.unshift(newKOT);
                     
                     $('#orderModal').modal('hide');
+                    showToast('Order sent to kitchen successfully!');
                     render();
                 }
             });
@@ -925,6 +1061,7 @@
                 table.order = [];
 
                 $('#billingModal').modal('hide');
+                showToast('Payment successful! Table is now available.');
                 render();
             });
 
@@ -938,10 +1075,111 @@
                     state.kitchenOrders = state.kitchenOrders.filter(o => o.id !== orderId);
                     const table = state.tables.find(t => t.id === order.tableId);
                     if (table) table.status = 'billing';
+                    showToast(`${order.tableName}'s order is served and ready for billing.`);
                 } else {
                     if (order) order.status = newStatus;
                 }
                 render();
+            });
+
+            // Inventory: Restock
+            $('body').on('click', '.restock-btn', function() {
+                const itemId = $(this).data('item-id');
+                const item = state.inventory.find(i => i.id === itemId);
+                if (item) {
+                    const amount = prompt(`How many units of ${item.name} to add?`, 20);
+                    if (amount && !isNaN(amount) && Number(amount) > 0) {
+                        item.stock += Number(amount);
+                        showToast(`${item.name} stock updated to ${item.stock}.`);
+                        render();
+                    }
+                }
+            });
+            
+            // Inventory: Open Add Item Modal
+            $('body').on('click', '#add-inventory-item-btn', function() {
+                $('#inventory-form')[0].reset();
+                const categorySelect = $('#item-category');
+                categorySelect.empty();
+                Object.keys(state.menu).forEach(category => {
+                    categorySelect.append(`<option value="${category}">${category}</option>`);
+                });
+                $('#inventoryModal').modal('show');
+            });
+
+            // Inventory: Handle form submission for new item
+            $('#inventory-form').on('submit', function(e) {
+                e.preventDefault();
+                const newItemData = {
+                    id: Date.now(),
+                    name: $('#item-name').val(),
+                    price: parseFloat($('#item-price').val()),
+                    stock: parseInt($('#item-stock').val()),
+                };
+                const newItemInventory = {
+                    ...newItemData,
+                    supplier: $('#item-supplier').val() || 'Gourmet Foods Inc.',
+                    lowStockThreshold: parseInt($('#item-low-stock').val())
+                };
+
+                const category = $('#item-category').val();
+
+                if (state.menu[category]) {
+                    state.menu[category].push(newItemData);
+                    state.inventory.push(newItemInventory);
+                    
+                    $('#inventoryModal').modal('hide');
+                    showToast('New item added successfully!');
+                    render();
+                } else {
+                    showToast('Invalid category selected.', 'danger');
+                }
+            });
+
+            // User Management: Add/Edit User
+            $('body').on('click', '#add-user-btn', function() {
+                $('#user-form')[0].reset();
+                $('#user-id').val('');
+                $('#userModalLabel').text('Add New User');
+                $('#userModal').modal('show');
+            });
+            $('body').on('click', '.edit-user-btn', function() {
+                const userId = $(this).data('user-id');
+                const user = state.users[userId];
+                if(user) {
+                    $('#user-id').val(user.id);
+                    $('#user-name').val(user.name);
+                    $('#user-role').val(user.role);
+                    $('#userModalLabel').text('Edit User');
+                    $('#userModal').modal('show');
+                }
+            });
+            $('#user-form').on('submit', function(e) {
+                e.preventDefault();
+                const userId = $('#user-id').val();
+                const userName = $('#user-name').val();
+                const userRole = $('#user-role').val();
+
+                if (userId) { // Editing existing user
+                    state.users[userId] = { ...state.users[userId], name: userName, role: userRole };
+                    showToast('User updated successfully!');
+                } else { // Adding new user
+                    const newId = `user_${Date.now()}`;
+                    state.users[newId] = { id: newId, name: userName, role: userRole };
+                    showToast('User added successfully!');
+                }
+                $('#userModal').modal('hide');
+                render();
+            });
+            // User Management: Remove User
+            $('body').on('click', '.remove-user-btn', function() {
+                const userId = $(this).data('user-id');
+                const user = state.users[userId];
+                if (user && confirm(`Are you sure you want to remove ${user.name}?`)) {
+                    delete state.users[userId];
+                    showToast('User removed successfully!');
+                    render();
+                }
             });
 
 
@@ -952,4 +1190,5 @@
     </script>
 </body>
 </html>
+
 
