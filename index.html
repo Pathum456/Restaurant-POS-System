@@ -32,6 +32,8 @@
             --blue-500: #3b82f6;
             --yellow-500: #eab308;
             --red-500: #ef4444;
+            --purple-500: #8b5cf6;
+            --gray-500: #6b7280;
         }
 
         body {
@@ -107,6 +109,9 @@
         }
 
         /* --- Table Layout --- */
+        .table-card-wrapper {
+            position: relative;
+        }
         .table-card {
             aspect-ratio: 1 / 1;
             transition: transform 0.2s;
@@ -114,12 +119,26 @@
         .table-card:hover {
             transform: scale(1.05);
         }
+        .table-card-admin-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
+        }
+         .table-card-admin-controls .btn {
+            background-color: rgba(0,0,0,0.4);
+            border: none;
+        }
         .table-card.available { background-color: var(--slate-700); }
         .table-card.available:hover { background-color: var(--slate-600); }
         .table-card.occupied { background-color: var(--blue-500); }
         .table-card.occupied:hover { background-color: #2563eb; }
         .table-card.billing { background-color: var(--yellow-500); }
         .table-card.billing:hover { background-color: #ca8a04; }
+        .table-card.reserved { background-color: var(--purple-500); }
+        .table-card.reserved:hover { background-color: #7c3aed; }
+        .table-card.unavailable { background-color: var(--gray-500); }
+        .table-card.unavailable:hover { background-color: #4b5563; }
 
         /* --- Dashboard --- */
         .stat-card, .data-card {
@@ -386,6 +405,41 @@
             </div>
         </div>
     </div>
+    
+    <!-- Table Management Modal -->
+    <div class="modal fade" id="tableModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <form id="table-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title fs-4 fw-bold text-white" id="tableModalLabel">Add New Table</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="table-id">
+                        <div class="mb-3">
+                            <label for="table-name" class="form-label">Table Name</label>
+                            <input type="text" class="form-control form-control-dark" id="table-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="table-status" class="form-label">Status</label>
+                            <select class="form-select form-control-dark" id="table-status" required>
+                                <option value="available">Available</option>
+                                <option value="reserved">Reserved</option>
+                                <option value="unavailable">Unavailable</option>
+                                <!-- Occupied and Billing are set via orders, not manually -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Table</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3"></div>
@@ -605,17 +659,49 @@
             }
 
             function renderTableLayoutPage() {
-                const content = `
-                    <h1 class="text-3xl fw-bold text-white mb-4">Table Layout</h1>
-                    <div id="table-grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-4">
-                        ${state.tables.map(table => `
-                            <div class="col">
-                                <button class="btn table-card w-100 rounded-4 shadow d-flex flex-column justify-content-center align-items-center fw-bold fs-4 text-white ${table.status}" data-table-id="${table.id}">
+                const isAdmin = state.currentUser.role === 'Admin';
+                
+                let adminHeader = '';
+                if(isAdmin) {
+                    adminHeader = `
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                             <h1 class="text-3xl fw-bold text-white mb-0">Table Layout</h1>
+                             <button class="btn btn-success d-flex align-items-center" id="add-table-btn">
+                                <i class="bi bi-plus-circle me-2"></i> Add Table
+                             </button>
+                        </div>
+                    `;
+                } else {
+                     adminHeader = `<h1 class="text-3xl fw-bold text-white mb-4">Table Layout</h1>`;
+                }
+
+                const tableCards = state.tables.map(table => {
+                    let adminControls = '';
+                    if(isAdmin) {
+                        adminControls = `
+                            <div class="table-card-admin-controls">
+                                <button class="btn btn-sm text-white edit-table-btn" data-table-id="${table.id}"><i class="bi bi-pencil-fill"></i></button>
+                                <button class="btn btn-sm text-white remove-table-btn" data-table-id="${table.id}"><i class="bi bi-trash-fill"></i></button>
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="col">
+                            <div class="table-card-wrapper">
+                                ${adminControls}
+                                <button class="btn table-card w-100 rounded-4 shadow d-flex flex-column justify-content-center align-items-center fw-bold fs-4 text-white ${table.status}" data-table-id="${table.id}" ${table.status === 'unavailable' ? 'disabled' : ''}>
                                     <span>${table.name}</span>
                                     <span class="fs-6 fw-normal text-capitalize">${table.status}</span>
                                 </button>
                             </div>
-                        `).join('')}
+                        </div>
+                    `;
+                }).join('');
+
+                const content = `
+                    ${adminHeader}
+                    <div id="table-grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-4">
+                       ${tableCards}
                     </div>
                 `;
                 $('#main-content').html(content);
@@ -1374,6 +1460,90 @@
                 });
             });
 
+            // Table Management (Admin only)
+            $('body').on('click', '#add-table-btn', function() {
+                $('#table-form')[0].reset();
+                $('#table-id').val('');
+                $('#tableModalLabel').text('Add New Table');
+                $('#table-status').prop('disabled', false);
+                $('#tableModal').modal('show');
+            });
+
+            $('body').on('click', '.edit-table-btn', function() {
+                const tableId = $(this).data('table-id');
+                const table = state.tables.find(t => t.id === tableId);
+                if (table) {
+                    $('#table-id').val(table.id);
+                    $('#table-name').val(table.name);
+                    $('#table-status').val(table.status);
+                    
+                    // Prevent changing status if table is in use
+                    if(table.status === 'occupied' || table.status === 'billing'){
+                        $('#table-status').prop('disabled', true);
+                    } else {
+                        $('#table-status').prop('disabled', false);
+                    }
+
+                    $('#tableModalLabel').text(`Edit ${table.name}`);
+                    $('#tableModal').modal('show');
+                }
+            });
+            
+             $('body').on('click', '.remove-table-btn', function() {
+                const tableId = $(this).data('table-id');
+                const table = state.tables.find(t => t.id === tableId);
+                if (table) {
+                    if(table.status !== 'available') {
+                        Swal.fire('Cannot Remove', 'Only available tables can be removed.', 'error');
+                        return;
+                    }
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: `You are about to remove ${table.name}. This cannot be undone.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, remove it!',
+                        cancelButtonText: 'No, keep it'
+                    }).then((result) => {
+                         if (result.isConfirmed) {
+                            state.tables = state.tables.filter(t => t.id !== tableId);
+                            Swal.fire('Removed!', `${table.name} has been removed.`, 'success');
+                            render();
+                        }
+                    });
+                }
+            });
+
+            $('#table-form').on('submit', function(e) {
+                e.preventDefault();
+                const tableId = parseInt($('#table-id').val());
+                const tableName = $('#table-name').val();
+                const tableStatus = $('#table-status').val();
+
+                if (tableId) { // Editing
+                    const table = state.tables.find(t => t.id === tableId);
+                    if(table) {
+                        table.name = tableName;
+                        // Only change status if it's not locked
+                        if(!$('#table-status').is(':disabled')){
+                           table.status = tableStatus;
+                        }
+                    }
+                    showToast('Table updated successfully!');
+                } else { // Adding
+                    const newId = state.tables.length > 0 ? Math.max(...state.tables.map(t => t.id)) + 1 : 1;
+                    state.tables.push({
+                        id: newId,
+                        name: tableName,
+                        status: tableStatus,
+                        order: []
+                    });
+                     showToast('Table added successfully!');
+                }
+                $('#tableModal').modal('hide');
+                render();
+            });
+
 
             // --- INITIALIZATION ---
             initializeData();
@@ -1382,4 +1552,5 @@
     </script>
 </body>
 </html>
+" and the user is asking the following query: "need to implement firebase"
 
