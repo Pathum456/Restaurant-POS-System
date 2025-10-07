@@ -170,6 +170,11 @@
             height: 28px;
             border: none;
         }
+        .quantity-btn:disabled {
+            background-color: var(--slate-700);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         
         /* --- Toast Notifications --- */
         .toast-container {
@@ -231,7 +236,7 @@
                                 <div id="current-order-items" class="flex-grow-1 overflow-auto pe-2" style="min-height: 200px;">
                                     <p class="text-slate-400 text-center pt-5">No items added yet.</p>
                                 </div>
-                                <div class="mt-auto border-top border-secondary pt-3">
+                                <div id="order-modal-footer" class="mt-auto border-top border-secondary pt-3">
                                     <div class="d-flex justify-content-between align-items-center fs-3 fw-bold text-white mb-3">
                                         <span>Total:</span>
                                         <span id="order-total">$0.00</span>
@@ -381,6 +386,7 @@
                 menu: {},
                 users: {},
                 activeModalTableId: null,
+                activeOrder: [], // Temporary state for the order modal
                 salesChart: null,
             };
 
@@ -449,6 +455,21 @@
                 $(`#${toastId}`).on('hidden.bs.toast', function () {
                     $(this).remove();
                 });
+            }
+            
+            function calculateOrderDifference(oldOrder, newOrder) {
+                const diff = [];
+                const oldOrderMap = new Map(oldOrder.map(item => [item.id, item.quantity]));
+
+                for (const newItem of newOrder) {
+                    const oldQuantity = oldOrderMap.get(newItem.id) || 0;
+                    const quantityDiff = newItem.quantity - oldQuantity;
+
+                    if (quantityDiff > 0) {
+                        diff.push({ ...newItem, quantity: quantityDiff });
+                    }
+                }
+                return diff;
             }
 
             // --- RENDER FUNCTIONS ---
@@ -697,7 +718,11 @@
                                                         <li><span class="fw-semibold text-emerald">${item.quantity}x</span> ${item.name}</li>
                                                     `).join('')}
                                                 </ul>
-                                                <div class="text-end">${actionButton}</div>
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    ${status === 'Preparing' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-new">Back</button>` : ''}
+                                                    ${status === 'Ready' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-preparing">Back</button>` : ''}
+                                                    ${actionButton}
+                                                </div>
                                             </div>
                                         `
                                     }).join('') || `<p class="text-slate-400 text-center p-5">No orders</p>`}
@@ -848,6 +873,10 @@
                 state.activeModalTableId = tableId;
                 const table = state.tables.find(t => t.id === tableId);
                 $('#orderModalLabel').text(`Order for ${table.name}`);
+                
+                state.activeOrder = JSON.parse(JSON.stringify(table.order));
+                
+                const isOrderLocked = state.kitchenOrders.some(ko => ko.tableId === table.id && (ko.status === 'preparing' || ko.status === 'ready'));
 
                 // Render Menu
                 const menuContainer = $('#menu-container');
@@ -867,17 +896,24 @@
                     `);
                 });
 
-                updateOrderSummary(table.order);
+                updateOrderSummary(state.activeOrder, isOrderLocked);
                 $('#orderModal').modal('show');
             }
 
-            function updateOrderSummary(currentOrder) {
+            function updateOrderSummary(currentOrder, isOrderLocked = false) {
                 const orderItemsContainer = $('#current-order-items');
+                const table = state.tables.find(t => t.id === state.activeModalTableId);
+                const originalOrderMap = new Map(table.order.map(i => [i.id, i.quantity]));
+
                 if (!currentOrder || currentOrder.length === 0) {
                     orderItemsContainer.html('<p class="text-slate-400 text-center pt-5">No items added yet.</p>');
                 } else {
                     orderItemsContainer.empty();
                     currentOrder.forEach(item => {
+                        const originalQuantity = originalOrderMap.get(item.id) || 0;
+                        const isItemLocked = isOrderLocked && originalQuantity > 0;
+                        const canDecrease = !isItemLocked || (isItemLocked && item.quantity > originalQuantity);
+
                         orderItemsContainer.append(`
                             <div class="order-item d-flex justify-content-between align-items-center p-2 rounded-3 mb-2">
                                 <div>
@@ -885,7 +921,7 @@
                                     <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <button class="btn btn-sm rounded-circle quantity-btn" data-item-id="${item.id}" data-change="-1">-</button>
+                                    <button class="btn btn-sm rounded-circle quantity-btn" data-item-id="${item.id}" data-change="-1" ${!canDecrease ? 'disabled' : ''}>-</button>
                                     <span class="fw-bold text-white" style="min-width: 20px; text-align: center;">${item.quantity}</span>
                                     <button class="btn btn-sm rounded-circle quantity-btn" data-item-id="${item.id}" data-change="1">+</button>
                                 </div>
@@ -896,7 +932,18 @@
                 
                 const total = currentOrder.reduce((sum, item) => sum + item.price * item.quantity, 0);
                 $('#order-total').text(`$${total.toFixed(2)}`);
-                $('#place-order-btn').prop('disabled', currentOrder.length === 0);
+                
+                const mainButton = $('#place-order-btn');
+                mainButton.prop('disabled', currentOrder.length === 0);
+                mainButton.text(table.order.length > 0 ? 'Update Order' : 'Place Order');
+
+                const footer = $('#order-modal-footer');
+                footer.find('#cancel-order-btn').remove();
+                const isCancellable = table.order.length > 0 && !isOrderLocked;
+
+                if (isCancellable) {
+                    footer.append('<button id="cancel-order-btn" class="btn btn-danger w-100 fw-bold mt-2">Cancel Entire Order</button>');
+                }
             }
 
             function openBillingModal(tableId) {
@@ -982,55 +1029,98 @@
             // Order Modal: Add Item
             $('#orderModal').on('click', '.menu-item-btn', function() {
                 const itemId = $(this).data('item-id');
-                const table = state.tables.find(t => t.id === state.activeModalTableId);
                 const itemData = Object.values(state.menu).flat().find(i => i.id === itemId);
 
-                const existingItem = table.order.find(orderItem => orderItem.id === itemId);
+                const existingItem = state.activeOrder.find(orderItem => orderItem.id === itemId);
                 if (existingItem) {
                     existingItem.quantity++;
                 } else {
-                    table.order.push({ ...itemData, quantity: 1 });
+                    state.activeOrder.push({ ...itemData, quantity: 1 });
                 }
-                updateOrderSummary(table.order);
+                const isOrderLocked = state.kitchenOrders.some(ko => ko.tableId === state.activeModalTableId && (ko.status === 'preparing' || ko.status === 'ready'));
+                updateOrderSummary(state.activeOrder, isOrderLocked);
             });
             
             // Order Modal: Update Quantity
             $('#orderModal').on('click', '.quantity-btn', function() {
                 const itemId = $(this).data('item-id');
                 const change = $(this).data('change');
-                const table = state.tables.find(t => t.id === state.activeModalTableId);
-                const itemInOrder = table.order.find(orderItem => orderItem.id === itemId);
+                const itemInOrder = state.activeOrder.find(orderItem => orderItem.id === itemId);
+                const isOrderLocked = state.kitchenOrders.some(ko => ko.tableId === state.activeModalTableId && (ko.status === 'preparing' || ko.status === 'ready'));
 
                 if (itemInOrder) {
+                    const table = state.tables.find(t => t.id === state.activeModalTableId);
+                    const originalItem = table.order.find(i => i.id === itemId);
+                    const originalQuantity = originalItem ? originalItem.quantity : 0;
+
+                    if (change < 0 && isOrderLocked && itemInOrder.quantity <= originalQuantity) {
+                        showToast("Cannot reduce quantity of an item being prepared.", "danger");
+                        return;
+                    }
+
                     itemInOrder.quantity += change;
                     if (itemInOrder.quantity <= 0) {
-                        table.order = table.order.filter(i => i.id !== itemId);
+                        state.activeOrder = state.activeOrder.filter(i => i.id !== itemId);
                     }
                 }
-                updateOrderSummary(table.order);
+                updateOrderSummary(state.activeOrder, isOrderLocked);
             });
 
-            // Order Modal: Place Order
+            // Order Modal: Place or Update Order
             $('#place-order-btn').on('click', function() {
-                const table = state.tables.find(t => t.id === state.activeModalTableId);
-                if (table.order.length > 0) {
-                    table.status = 'occupied';
+                const tableId = state.activeModalTableId;
+                const table = state.tables.find(t => t.id === tableId);
+                const newCompleteOrder = state.activeOrder;
+
+                if (!table) return;
+
+                const existingNewKot = state.kitchenOrders.find(ko => ko.tableId === tableId && ko.status === 'new');
+
+                if (existingNewKot) {
+                    existingNewKot.items = [...newCompleteOrder];
+                    showToast(`Order for ${table.name} has been updated.`);
+                } else {
+                    const itemsForNewKot = calculateOrderDifference(table.order, newCompleteOrder);
                     
-                    const newKOT = {
-                        id: Date.now(),
-                        tableId: table.id,
-                        tableName: table.name,
-                        items: [...table.order], // Create a copy
-                        status: 'new',
-                        timestamp: new Date().toISOString(),
-                    };
-                    state.kitchenOrders.unshift(newKOT);
+                    if (itemsForNewKot.length > 0) {
+                        state.kitchenOrders.unshift({
+                            id: Date.now(),
+                            tableId: table.id,
+                            tableName: table.name,
+                            items: itemsForNewKot,
+                            status: 'new',
+                            timestamp: new Date().toISOString(),
+                        });
+                        showToast(`New items for ${table.name} sent to kitchen.`);
+                    } else {
+                        showToast(`No new items to send for ${table.name}.`);
+                    }
+                }
+                
+                table.order = [...newCompleteOrder];
+                table.status = table.order.length > 0 ? 'occupied' : 'available';
+                $('#orderModal').modal('hide');
+                render();
+            });
+            
+            // Order Modal: Cancel Order
+            $('body').on('click', '#cancel-order-btn', function() {
+                if (confirm('Are you sure you want to cancel this entire order?')) {
+                    const tableId = state.activeModalTableId;
+                    const table = state.tables.find(t => t.id === tableId);
                     
+                    // Remove the corresponding 'new' KOT from the kitchen list
+                    state.kitchenOrders = state.kitchenOrders.filter(ko => !(ko.tableId === tableId && ko.status === 'new'));
+                    
+                    table.order = [];
+                    table.status = 'available';
+
                     $('#orderModal').modal('hide');
-                    showToast('Order sent to kitchen successfully!');
+                    showToast(`Order for ${table.name} has been cancelled.`);
                     render();
                 }
             });
+
 
             // Billing Modal: Process Payment
             $('#billingModal').on('click', '.payment-btn', function() {
@@ -1068,16 +1158,32 @@
             // Kitchen: Update Order Status
             $('body').on('click', '.kot-action-btn', function() {
                 const orderId = $(this).data('order-id');
-                const newStatus = $(this).data('action');
+                const action = $(this).data('action');
                 const order = state.kitchenOrders.find(o => o.id === orderId);
 
-                if (newStatus === 'served') {
-                    state.kitchenOrders = state.kitchenOrders.filter(o => o.id !== orderId);
-                    const table = state.tables.find(t => t.id === order.tableId);
-                    if (table) table.status = 'billing';
-                    showToast(`${order.tableName}'s order is served and ready for billing.`);
-                } else {
-                    if (order) order.status = newStatus;
+                if (!order) return;
+
+                switch (action) {
+                    case 'served':
+                        state.kitchenOrders = state.kitchenOrders.filter(o => o.id !== orderId);
+                        const table = state.tables.find(t => t.id === order.tableId);
+                        if (table) {
+                            const hasPendingKots = state.kitchenOrders.some(ko => ko.tableId === table.id);
+                            if (!hasPendingKots) {
+                                table.status = 'billing';
+                            }
+                        }
+                        showToast(`${order.tableName}'s order is served.`);
+                        break;
+                    case 'move-to-new':
+                        order.status = 'new';
+                        break;
+                    case 'move-to-preparing':
+                        order.status = 'preparing';
+                        break;
+                    default: // 'preparing', 'ready'
+                        order.status = action;
+                        break;
                 }
                 render();
             });
@@ -1190,5 +1296,4 @@
     </script>
 </body>
 </html>
-
 
