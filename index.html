@@ -750,7 +750,6 @@
                                                     `).join('')}
                                                 </ul>
                                                 <div class="d-flex justify-content-end gap-2">
-                                                    ${status === 'New' ? `<button class="btn btn-sm btn-outline-danger kot-action-btn" data-order-id="${order.id}" data-action="cancel">Cancel</button>` : ''}
                                                     ${status === 'Preparing' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-new">Back</button>` : ''}
                                                     ${status === 'Ready' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-preparing">Back</button>` : ''}
                                                     ${actionButton}
@@ -1216,49 +1215,39 @@
                         }
                         showToast(`${order.tableName}'s order has been served.`);
                         break;
-                    case 'cancel':
+                    case 'ready':
                         Swal.fire({
-                            title: 'Cancel Order?',
-                            text: `This will cancel the entire order for ${order.tableName}. This cannot be undone.`,
-                            icon: 'warning',
+                            title: 'Is the order ready?',
+                            text: `Confirm that all items for ${order.tableName} are prepared.`,
+                            icon: 'question',
                             showCancelButton: true,
-                            confirmButtonText: 'Yes, cancel it!',
-                            cancelButtonText: 'No, keep it'
+                            confirmButtonText: 'Yes, it\'s ready!',
+                            cancelButtonText: 'Not yet'
                         }).then((result) => {
-                             if (result.isConfirmed) {
-                                const tableToClear = state.tables.find(t => t.id === order.tableId);
-                                if (tableToClear) {
-                                    // Remove all KOTs for this table, not just the one clicked
-                                    state.kitchenOrders = state.kitchenOrders.filter(ko => ko.tableId !== tableToClear.id);
-                                    // Reset the table
-                                    tableToClear.order = [];
-                                    tableToClear.status = 'available';
-                                    Swal.fire('Cancelled!', `Order for ${tableToClear.name} has been cancelled.`, 'success');
-                                    render();
-                                }
+                            if (result.isConfirmed) {
+                                order.status = 'ready';
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'info',
+                                    title: `Order for ${order.tableName} is ready!`,
+                                    html: 'Please pick it up from the kitchen.',
+                                    showConfirmButton: false,
+                                    timer: 5000,
+                                    timerProgressBar: true
+                                });
+                                render();
                             }
                         });
-                        return; // Prevent fall-through and re-render
+                        return; // Prevent default render
                     case 'move-to-new':
                         order.status = 'new';
                         break;
                     case 'move-to-preparing':
                         order.status = 'preparing';
                         break;
-                    default: // 'preparing', 'ready'
+                    default: // 'preparing'
                         order.status = action;
-                         if (action === 'ready') {
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'info',
-                                title: `Order for ${order.tableName} is ready!`,
-                                html: 'Please pick it up from the kitchen.',
-                                showConfirmButton: false,
-                                timer: 5000,
-                                timerProgressBar: true
-                            });
-                        }
                         break;
                 }
                 render();
