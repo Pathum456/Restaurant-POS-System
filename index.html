@@ -185,6 +185,14 @@
         .table-hover > tbody > tr:hover > * {
             --bs-table-hover-bg: rgba(51, 65, 85, 0.5);
         }
+        .nav-pills .nav-link {
+             color: var(--slate-300);
+        }
+        .nav-pills .nav-link.active {
+            background-color: var(--emerald-500);
+            color: var(--slate-900);
+        }
+
 
         /* --- Modals --- */
         .modal-content {
@@ -405,45 +413,49 @@
         </div>
     </div>
     
-    <!-- Inventory Management Modal (Placeholder) -->
+    <!-- Inventory Management Modal -->
     <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4">
                 <form id="inventory-form">
                     <div class="modal-header">
-                        <h5 class="modal-title fs-4 fw-bold text-white" id="inventoryModalLabel">Add New Inventory Item</h5>
+                        <h5 class="modal-title fs-4 fw-bold text-white" id="inventoryModalLabel">Add Ingredient</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <input type="hidden" id="inventory-item-id">
+                        <input type="hidden" id="inventory-item-original-category">
                         <div class="mb-3">
-                            <label for="item-name" class="form-label">Item Name</label>
-                            <input type="text" class="form-control form-control-dark" id="item-name" required>
+                            <label for="inventory-item-name" class="form-label">Ingredient Name</label>
+                            <input type="text" class="form-control form-control-dark" id="inventory-item-name" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="item-category" class="form-label">Category</label>
-                                <select class="form-select form-control-dark" id="item-category" required>
-                                    <!-- Options populated by JS -->
+                                <label for="inventory-item-category" class="form-label">Category</label>
+                                <select class="form-select form-control-dark" id="inventory-item-category" required>
+                                    <option value="kitchen">Kitchen</option>
+                                    <option value="bar">Bar</option>
+                                    <option value="general">General</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="item-price" class="form-label">Price</label>
-                                <input type="number" class="form-control form-control-dark" id="item-price" step="0.01" min="0" required>
+                                <label for="inventory-item-unit" class="form-label">Unit</label>
+                                <input type="text" class="form-control form-control-dark" id="inventory-item-unit" placeholder="e.g., kg, liters, units" required>
                             </div>
                         </div>
                         <div class="row">
                              <div class="col-md-6 mb-3">
-                                <label for="item-stock" class="form-label">Stock Quantity</label>
-                                <input type="number" class="form-control form-control-dark" id="item-stock" min="0" required>
+                                <label for="inventory-item-stock" class="form-label">Stock Quantity</label>
+                                <input type="number" class="form-control form-control-dark" id="inventory-item-stock" step="any" min="0" required>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="item-low-stock" class="form-label">Low Stock Threshold</label>
-                                <input type="number" class="form-control form-control-dark" id="item-low-stock" min="0" required>
+                                <label for="inventory-item-low-stock" class="form-label">Low Stock Threshold</label>
+                                <input type="number" class="form-control form-control-dark" id="inventory-item-low-stock" step="any" min="0" required>
                             </div>
                         </div>
                          <div class="mb-3">
-                            <label for="item-supplier" class="form-label">Supplier</label>
-                            <input type="text" class="form-control form-control-dark" id="item-supplier" value="Gourmet Foods Inc.">
+                            <label for="inventory-item-supplier" class="form-label">Supplier</label>
+                            <input type="text" class="form-control form-control-dark" id="inventory-item-supplier">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -581,7 +593,7 @@
                 orders: [], // Completed orders for reporting
                 kitchenOrders: [], // Live kitchen orders
                 barOrders: [], // Live bar orders
-                inventory: [],
+                inventory: {}, // Changed to an object
                 menu: {},
                 users: {},
                 activeModalTableId: null,
@@ -602,32 +614,32 @@
             function initializeData() {
                 state.menu = {
                   Appetizers: [
-                    { id: 1, name: "Spring Rolls", price: 8.50, stock: 50 },
-                    { id: 2, name: "Garlic Bread", price: 6.00, stock: 100 },
-                    { id: 3, name: "Bruschetta", price: 9.00, stock: 40 },
+                    { id: 1, name: "Spring Rolls", price: 8.50 },
+                    { id: 2, name: "Garlic Bread", price: 6.00 },
+                    { id: 3, name: "Bruschetta", price: 9.00 },
                   ],
                   'Main Course': [
-                    { id: 4, name: "Spaghetti Carbonara", price: 18.00, stock: 30 },
-                    { id: 5, name: "Grilled Salmon", price: 24.50, stock: 25 },
-                    { id: 6, name: "Margherita Pizza", price: 15.00, stock: 40, customizable: true, modifiers: [
+                    { id: 4, name: "Spaghetti Carbonara", price: 18.00 },
+                    { id: 5, name: "Grilled Salmon", price: 24.50 },
+                    { id: 6, name: "Margherita Pizza", price: 15.00, customizable: true, modifiers: [
                         { name: 'Extra Cheese', price: 1.50 }, { name: 'Olives', price: 1.00 }, { name: 'Mushrooms', price: 1.25 }
                     ]},
-                    { id: 7, name: "Chicken Alfredo", price: 19.50, stock: 35 },
+                    { id: 7, name: "Chicken Alfredo", price: 19.50 },
                   ],
                   Desserts: [
-                    { id: 8, name: "Tiramisu", price: 9.50, stock: 20 },
-                    { id: 9, name: "Cheesecake", price: 8.00, stock: 25 },
-                    { id: 10, name: "Chocolate Lava Cake", price: 10.00, stock: 15 },
+                    { id: 8, name: "Tiramisu", price: 9.50 },
+                    { id: 9, name: "Cheesecake", price: 8.00 },
+                    { id: 10, name: "Chocolate Lava Cake", price: 10.00 },
                   ],
                   Beverages: [
-                    { id: 11, name: "Cola", price: 3.50, stock: 200 },
-                    { id: 12, name: "Orange Juice", price: 4.00, stock: 150 },
-                    { id: 13, name: "Espresso", price: 3.00, stock: 300 },
+                    { id: 11, name: "Cola", price: 3.50 },
+                    { id: 12, name: "Orange Juice", price: 4.00 },
+                    { id: 13, name: "Espresso", price: 3.00 },
                   ],
                    Liqueur: [
-                    { id: 14, name: "Red Wine (Glass)", price: 8.00, stock: 50 },
-                    { id: 15, name: "Local Beer", price: 6.50, stock: 100 },
-                    { id: 16, name: "Whiskey (Single)", price: 9.00, stock: 40 },
+                    { id: 14, name: "Red Wine (Glass)", price: 8.00 },
+                    { id: 15, name: "Local Beer", price: 6.50 },
+                    { id: 16, name: "Whiskey (Single)", price: 9.00 },
                   ]
                 };
 
@@ -635,14 +647,27 @@
                     id: i + 1,
                     name: `Table ${i + 1}`,
                     status: 'available',
-                    order: [], // Will hold multiple order objects
+                    order: [],
                 }));
 
-                state.inventory = Object.values(state.menu).flat().map(item => ({
-                    ...item,
-                    supplier: 'Gourmet Foods Inc.',
-                    lowStockThreshold: 10,
-                }));
+                state.inventory = {
+                    kitchen: [
+                        { id: 'k1', name: 'Pizza Dough', unit: 'units', stock: 40, lowStockThreshold: 10, supplier: 'Dough Masters' },
+                        { id: 'k2', name: 'Tomato Sauce', unit: 'liters', stock: 20, lowStockThreshold: 5, supplier: 'Italian Imports' },
+                        { id: 'k3', name: 'Mozzarella Cheese', unit: 'kg', stock: 15, lowStockThreshold: 4, supplier: 'Dairy Farms' },
+                        { id: 'k4', name: 'Salmon Fillet', unit: 'kg', stock: 10, lowStockThreshold: 2, supplier: 'Ocean Fresh' },
+                        { id: 'k5', name: 'Pasta', unit: 'kg', stock: 30, lowStockThreshold: 5, supplier: 'Italian Imports' },
+                    ],
+                    bar: [
+                        { id: 'b1', name: 'Whiskey', unit: 'bottles', stock: 12, lowStockThreshold: 2, supplier: 'Fine Spirits' },
+                        { id: 'b2', name: 'Cola', unit: 'cans', stock: 150, lowStockThreshold: 24, supplier: 'Soda Co.' },
+                        { id: 'b3', name: 'Espresso Beans', unit: 'kg', stock: 10, lowStockThreshold: 1, supplier: 'Coffee World' },
+                    ],
+                    general: [
+                        { id: 'g1', name: 'Napkins', unit: 'packs', stock: 50, lowStockThreshold: 10, supplier: 'Gen Supplies' },
+                        { id: 'g2', name: 'Takeaway Boxes', unit: 'units', stock: 200, lowStockThreshold: 50, supplier: 'Packaging Inc.' },
+                    ]
+                };
                 
                 state.users = {
                     'admin': { id: 'admin', name: 'Alex Green', role: 'Admin' },
@@ -907,7 +932,9 @@
                 const completedOrders = state.orders.filter(o => o.status === 'completed');
                 const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
                 const activeOrders = state.kitchenOrders.length + state.barOrders.length;
-                const lowStockItems = state.inventory.filter(i => i.stock <= i.lowStockThreshold).length;
+                const lowStockItems = [...state.inventory.kitchen, ...state.inventory.bar, ...state.inventory.general]
+                    .filter(i => i.stock <= i.lowStockThreshold).length;
+
 
                 // Top Selling Items
                 const itemCounts = completedOrders
@@ -1128,87 +1155,74 @@
             }
             
             function renderInventoryPage() {
-                const getCategory = (itemId) => Object.entries(state.menu).find(([, items]) => items.some(i => i.id === itemId))?.[0] || 'N/A';
-                
-                // Get current filter values before re-rendering
-                const nameFilter = $('#inventory-search-name').val()?.toLowerCase() || '';
-                const categoryFilter = $('#inventory-search-category').val() || '';
-                const statusFilter = $('#inventory-search-status').val() || '';
-                
-                let filteredInventory = [...state.inventory];
-
-                if (nameFilter) {
-                    filteredInventory = filteredInventory.filter(item => item.name.toLowerCase().includes(nameFilter));
-                }
-                if (categoryFilter) {
-                    filteredInventory = filteredInventory.filter(item => getCategory(item.id) === categoryFilter);
-                }
-                if (statusFilter) {
-                    if (statusFilter === 'in-stock') {
-                        filteredInventory = filteredInventory.filter(item => item.stock > item.lowStockThreshold);
-                    } else if (statusFilter === 'low-stock') {
-                        filteredInventory = filteredInventory.filter(item => item.stock <= item.lowStockThreshold);
-                    }
-                }
-   
-                const tableRows = filteredInventory.map(item => `
-                    <tr class="align-middle">
-                        <td class="p-3 fw-medium text-white">${item.name}</td>
-                        <td class="p-3">${getCategory(item.id)}</td>
-                        <td class="p-3 text-end">$${item.price.toFixed(2)}</td>
-                        <td class="p-3 text-end font-monospace">${item.stock}</td>
-                        <td class="p-3">
-                             ${item.stock > item.lowStockThreshold 
-                                 ? `<span class="badge bg-success-subtle text-success-emphasis rounded-pill">In Stock</span>`
-                                 : `<span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Low Stock</span>`
-                             }
-                        </td>
-                        <td class="p-3 text-center">
-                            <button class="btn btn-sm btn-outline-success restock-btn" data-item-id="${item.id}">Restock</button>
-                        </td>
-                    </tr>
-                `).join('') || '<tr><td colspan="6" class="text-center p-4">No items match your search.</td></tr>';
-
                 const content = `
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h1 class="text-3xl fw-bold text-white mb-0">Inventory Management</h1>
+                        <button class="btn btn-success d-flex align-items-center" id="add-inventory-item-btn">
+                            <i class="bi bi-plus-circle me-2"></i> Add Ingredient
+                        </button>
                     </div>
 
-                    <div class="data-card p-3 rounded-4 shadow mb-4">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-5">
-                                <label for="inventory-search-name" class="form-label small">Search by Name</label>
-                                <input type="text" id="inventory-search-name" class="form-control form-control-dark" placeholder="e.g., Pizza">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="inventory-search-category" class="form-label small">Filter by Category</label>
-                                <select id="inventory-search-category" class="form-select form-select-dark">
-                                    <option value="">All Categories</option>
-                                    ${Object.keys(state.menu).map(cat => `<option value="${cat}">${cat}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="inventory-search-status" class="form-label small">Filter by Status</label>
-                                <select id="inventory-search-status" class="form-select form-select-dark">
-                                    <option value="">All Statuses</option>
-                                    <option value="in-stock">In Stock</option>
-                                    <option value="low-stock">Low Stock</option>
-                                </select>
-                            </div>
+                    <ul class="nav nav-pills mb-3" id="inventoryTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="kitchen-tab" data-bs-toggle="tab" data-bs-target="#kitchen-tab-pane" type="button" role="tab" aria-controls="kitchen-tab-pane" aria-selected="true">Kitchen</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="bar-tab" data-bs-toggle="tab" data-bs-target="#bar-tab-pane" type="button" role="tab" aria-controls="bar-tab-pane" aria-selected="false">Bar</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-tab-pane" type="button" role="tab" aria-controls="general-tab-pane" aria-selected="false">General</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="inventoryTabContent">
+                        <div class="tab-pane fade show active" id="kitchen-tab-pane" role="tabpanel" aria-labelledby="kitchen-tab">
+                            ${renderInventoryTable('kitchen', state.inventory.kitchen)}
+                        </div>
+                        <div class="tab-pane fade" id="bar-tab-pane" role="tabpanel" aria-labelledby="bar-tab">
+                            ${renderInventoryTable('bar', state.inventory.bar)}
+                        </div>
+                        <div class="tab-pane fade" id="general-tab-pane" role="tabpanel" aria-labelledby="general-tab">
+                            ${renderInventoryTable('general', state.inventory.general)}
                         </div>
                     </div>
+                `;
+                $('#main-content').html(content);
+            }
 
+            function renderInventoryTable(category, items) {
+                const tableRows = items.map(item => `
+                    <tr class="align-middle">
+                        <td class="p-3 fw-medium text-white">${item.name}</td>
+                        <td class="p-3">${item.unit}</td>
+                        <td class="p-3 text-end font-monospace">${item.stock}</td>
+                        <td class="p-3">
+                            ${item.stock > item.lowStockThreshold 
+                                ? `<span class="badge bg-success-subtle text-success-emphasis rounded-pill">In Stock</span>`
+                                : `<span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Low Stock</span>`
+                            }
+                        </td>
+                        <td class="p-3">${item.supplier || 'N/A'}</td>
+                        <td class="p-3 text-end">
+                            <button class="btn btn-sm btn-outline-info restock-btn" data-item-id="${item.id}" data-category="${category}">Restock</button>
+                            <button class="btn btn-sm btn-outline-primary ms-2 edit-inventory-item-btn" data-item-id="${item.id}" data-category="${category}">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger ms-2 delete-inventory-item-btn" data-item-id="${item.id}" data-category="${category}">Delete</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="6" class="text-center p-4">No ingredients in this category.</td></tr>';
+
+                return `
                     <div class="data-card rounded-4 shadow overflow-hidden">
                         <div class="table-responsive">
                             <table class="table table-dark table-hover mb-0">
                                 <thead class="text-uppercase small">
                                     <tr>
-                                        <th class="p-3">Item Name</th>
-                                        <th class="p-3">Category</th>
-                                        <th class="p-3 text-end">Unit Price</th>
-                                        <th class="p-3 text-end">Stock Quantity</th>
+                                        <th class="p-3">Ingredient</th>
+                                        <th class="p-3">Unit</th>
+                                        <th class="p-3 text-end">Stock</th>
                                         <th class="p-3">Status</th>
-                                        <th class="p-3 text-center">Actions</th>
+                                        <th class="p-3">Supplier</th>
+                                        <th class="p-3 text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>${tableRows}</tbody>
@@ -1216,11 +1230,6 @@
                         </div>
                     </div>
                 `;
-                 $('#main-content').html(content);
-
-                 $('#inventory-search-name').val(nameFilter);
-                 $('#inventory-search-category').val(categoryFilter);
-                 $('#inventory-search-status').val(statusFilter);
             }
 
             function renderMenuManagementPage() {
@@ -1228,9 +1237,12 @@
                 for (const category in state.menu) {
                      menuHtml += `
                         <div class="menu-category-card rounded-4 mb-4">
-                            <h3 class="fs-5 fw-bold text-white p-3 border-bottom border-secondary">${category}</h3>
+                            <h3 class="fs-5 fw-bold text-white p-3 border-bottom border-secondary d-flex justify-content-between align-items-center">
+                                ${category}
+                                <button class="btn btn-sm btn-outline-danger remove-category-btn" data-category="${category}"><i class="bi bi-trash"></i></button>
+                            </h3>
                             <div>
-                                ${state.menu[category].map(item => `
+                                ${state.menu[category].length > 0 ? state.menu[category].map(item => `
                                     <div class="menu-item-row p-3 d-flex justify-content-between align-items-center">
                                         <div>
                                             <div class="fw-bold text-white">${item.name}</div>
@@ -1241,7 +1253,7 @@
                                             <button class="btn btn-sm btn-outline-danger remove-menu-item-btn" data-item-id="${item.id}"><i class="bi bi-trash"></i> Remove</button>
                                         </div>
                                    </div>
-                                `).join('')}
+                                `).join('') : '<p class="p-3 text-slate-400">No items in this category.</p>'}
                             </div>
                         </div>
                       `;
@@ -1373,10 +1385,10 @@
                  $.each(state.menu, (category, items) => {
                      const itemsHtml = items.map(item => `
                          <div class="col">
-                             <button class="btn menu-item-btn w-100 text-start p-3 rounded-3 menu-item" data-item-id="${item.id}" ${item.stock <= 0 ? 'disabled' : ''}>
-                                 <div class="fw-semibold">${item.name} ${item.stock <= 0 ? '<span class="text-danger small">(Out of Stock)</span>' : ''}</div>
-                                 <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
-                             </button>
+                            <button class="btn menu-item-btn w-100 text-start p-3 rounded-3 menu-item" data-item-id="${item.id}">
+                                <div class="fw-semibold">${item.name}</div>
+                                <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
+                            </button>
                          </div>
                      `).join('');
                      menuContainer.append(`
@@ -1576,7 +1588,7 @@
             });
             
             // Navigation
-            $('body').on('click', '.nav-link', function() {
+            $('body').on('click', '.nav-link[data-page]', function() {
                 state.currentPage = $(this).data('page');
                 render();
             });
@@ -1808,13 +1820,8 @@
                 const total = $(this).data('total');
                 const table = state.tables.find(t => t.id === state.activeModalTableId);
                 
-                // Update Inventory
-                table.order.forEach(orderItem => {
-                    const inventoryItem = state.inventory.find(inv => inv.id === orderItem.id);
-                    if (inventoryItem) {
-                        inventoryItem.stock -= orderItem.quantity;
-                    }
-                });
+                // NOTE: Automatic stock deduction is removed as we move to ingredient-based inventory.
+                // This would require a recipe system to be implemented.
                 
                 // Create completed order record
                 state.orders.push({
@@ -1900,31 +1907,118 @@
                 render();
             });
 
-            // Inventory: Search/Filter and Restock
-            $('body').on('input change', '#inventory-search-name, #inventory-search-category, #inventory-search-status', function() {
+            // --- INVENTORY MANAGEMENT (NEW) ---
+
+            function openInventoryModal(item = null, category = 'kitchen') {
+                $('#inventory-form')[0].reset();
+                if (item) {
+                    $('#inventoryModalLabel').text('Edit Ingredient');
+                    $('#inventory-item-id').val(item.id);
+                    $('#inventory-item-original-category').val(category);
+                    $('#inventory-item-name').val(item.name);
+                    $('#inventory-item-category').val(category);
+                    $('#inventory-item-unit').val(item.unit);
+                    $('#inventory-item-stock').val(item.stock);
+                    $('#inventory-item-low-stock').val(item.lowStockThreshold);
+                    $('#inventory-item-supplier').val(item.supplier);
+                } else {
+                    $('#inventoryModalLabel').text('Add Ingredient');
+                    $('#inventory-item-id').val('');
+                    $('#inventory-item-original-category').val('');
+                }
+                $('#inventoryModal').modal('show');
+            }
+
+            $('body').on('click', '#add-inventory-item-btn', function() {
+                openInventoryModal();
+            });
+
+            $('body').on('click', '.edit-inventory-item-btn', function() {
+                const itemId = $(this).data('item-id');
+                const category = $(this).data('category');
+                const item = state.inventory[category].find(i => i.id === itemId);
+                if (item) {
+                    openInventoryModal(item, category);
+                }
+            });
+
+            $('#inventory-form').on('submit', function(e) {
+                e.preventDefault();
+                const itemId = $('#inventory-item-id').val();
+                const originalCategory = $('#inventory-item-original-category').val();
+                const newCategory = $('#inventory-item-category').val();
+
+                const itemData = {
+                    id: itemId || `item_${Date.now()}`,
+                    name: $('#inventory-item-name').val(),
+                    unit: $('#inventory-item-unit').val(),
+                    stock: parseFloat($('#inventory-item-stock').val()),
+                    lowStockThreshold: parseFloat($('#inventory-item-low-stock').val()),
+                    supplier: $('#inventory-item-supplier').val()
+                };
+
+                if (itemId) { // Editing
+                    // Remove from original category if category has changed
+                    if (originalCategory && originalCategory !== newCategory) {
+                        state.inventory[originalCategory] = state.inventory[originalCategory].filter(i => i.id !== itemId);
+                    } else { // Just update in place
+                         const itemIndex = state.inventory[originalCategory].findIndex(i => i.id === itemId);
+                         if (itemIndex > -1) state.inventory[originalCategory].splice(itemIndex, 1);
+                    }
+                    state.inventory[newCategory].push(itemData);
+                    showToast('Ingredient updated successfully!');
+                } else { // Adding
+                    state.inventory[newCategory].push(itemData);
+                    showToast('Ingredient added successfully!');
+                }
+
+                $('#inventoryModal').modal('hide');
                 renderInventoryPage();
+            });
+
+            $('body').on('click', '.delete-inventory-item-btn', function() {
+                const itemId = $(this).data('item-id');
+                const category = $(this).data('category');
+                const item = state.inventory[category].find(i => i.id === itemId);
+
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: `You are about to remove ${item.name}. This cannot be undone.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, remove it!',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        state.inventory[category] = state.inventory[category].filter(i => i.id !== itemId);
+                        Swal.fire('Removed!', `${item.name} has been removed.`, 'success');
+                        renderInventoryPage();
+                    }
+                });
             });
 
             $('body').on('click', '.restock-btn', function() {
                 const itemId = $(this).data('item-id');
-                 const item = state.inventory.find(i => i.id === itemId);
-                Swal.fire({
-                    title: `Restock ${item.name}`,
-                    input: 'number',
-                    inputLabel: 'Quantity to add',
-                    inputValue: 50,
-                    showCancelButton: true,
-                    confirmButtonText: 'Restock',
-                }).then((result) => {
-                    if (result.isConfirmed && result.value) {
-                         const quantity = parseInt(result.value);
-                         if(quantity > 0) {
-                             item.stock += quantity;
-                             showToast(`${item.name} restocked successfully.`);
-                             renderInventoryPage();
-                         }
-                    }
-                });
+                const category = $(this).data('category');
+                const item = state.inventory[category].find(i => i.id === itemId);
+                if (item) {
+                    Swal.fire({
+                        title: `Restock ${item.name}`,
+                        input: 'number',
+                        inputLabel: `Current stock (${item.unit}): ${item.stock}. How many to add?`,
+                        inputValue: 10,
+                        showCancelButton: true,
+                        confirmButtonText: 'Restock',
+                    }).then((result) => {
+                        if (result.isConfirmed && result.value) {
+                             const quantity = parseFloat(result.value);
+                             if (quantity > 0) {
+                                 item.stock += quantity;
+                                 showToast(`${item.name} restocked successfully.`);
+                                 renderInventoryPage();
+                             }
+                        }
+                    });
+                }
             });
             
             // --- MENU MANAGEMENT ---
@@ -1935,8 +2029,7 @@
 
                 const categorySelect = $('#menu-item-category');
                 categorySelect.empty();
-                 // Detach the change handler temporarily to prevent it from firing
-                 categorySelect.off('change');
+                 categorySelect.off('change'); // Detach handler
 
                 Object.keys(state.menu).forEach(cat => {
                     categorySelect.append(`<option value="${cat}">${cat}</option>`);
@@ -1959,7 +2052,7 @@
                         $('#menu-item-id').val(itemToEdit.id);
                         $('#menu-item-name').val(itemToEdit.name);
                         $('#menu-item-price').val(itemToEdit.price.toFixed(2));
-                        $('#menu-item-stock').val(itemToEdit.stock);
+                        $('#menu-item-stock').val(itemToEdit.stock); // This field is now for informational/initial setup purposes only
                         $('#menu-item-category').val(originalCategory);
 
                         if (itemToEdit.customizable) {
@@ -1973,8 +2066,7 @@
                     $('#menuItemModalLabel').text('Add New Menu Item');
                     $('#menu-item-id').val('');
                 }
-                // Re-attach the change handler
-                 categorySelect.on('change', handleNewCategory);
+                 categorySelect.on('change', handleNewCategory); // Re-attach handler
                 $('#menuItemModal').modal('show');
             }
 
@@ -1994,27 +2086,22 @@
                     Swal.fire({
                         title: 'Enter New Category Name',
                         input: 'text',
+                        inputPlaceholder: 'e.g., Soups',
                         showCancelButton: true,
                         confirmButtonText: 'Create & Select',
-                        cancelButtonText: 'Cancel'
                     }).then((result) => {
                         const categorySelect = $('#menu-item-category');
                         if (result.isConfirmed && result.value) {
                             const newCategoryName = result.value.trim();
-                            if (newCategoryName && !state.menu[newCategoryName]) {
+                            if (newCategoryName && !state.menu.hasOwnProperty(newCategoryName)) {
                                 state.menu[newCategoryName] = [];
-                                // Remove old 'new category' option, add the new one, then re-add 'new category' option
                                 categorySelect.find('option[value="new_category"]').remove();
-                                const newOption = new Option(newCategoryName, newCategoryName, true, true);
-                                categorySelect.append(newOption);
+                                categorySelect.append(new Option(newCategoryName, newCategoryName, true, true));
                                 categorySelect.append('<option value="new_category" class="text-info">-- Add New Category --</option>');
-                                categorySelect.val(newCategoryName); // Explicitly set value
-                                showToast(`Category "${newCategoryName}" created.`, 'success');
-                            } else if (state.menu[newCategoryName]) {
                                 categorySelect.val(newCategoryName);
-                                showToast(`Category "${newCategoryName}" already exists.`, 'info');
+                                showToast(`Category "${newCategoryName}" created.`, 'success');
                             } else {
-                                categorySelect.prop('selectedIndex', 0);
+                                categorySelect.val(state.menu.hasOwnProperty(newCategoryName) ? newCategoryName : '');
                             }
                         } else {
                             categorySelect.prop('selectedIndex', 0);
@@ -2036,7 +2123,7 @@
                 const category = $('#menu-item-category').val();
 
                 if (!category || category === 'new_category') {
-                    showToast('Please select a valid category.', 'danger');
+                    showToast('Please select or create a valid category.', 'danger');
                     return;
                 }
 
@@ -2056,7 +2143,7 @@
                     id: itemId || Date.now(),
                     name: $('#menu-item-name').val(),
                     price: parseFloat($('#menu-item-price').val()),
-                    stock: parseInt($('#menu-item-stock').val()),
+                    // Note: Stock from this modal is informational for now. Real stock is ingredient-based.
                     customizable: isCustomizable,
                     modifiers: modifiers
                 };
@@ -2069,25 +2156,9 @@
                             break;
                         }
                     }
-                    state.menu[category].push(itemData);
-                    showToast('Menu item updated successfully!');
-                } else { // Adding
-                    state.menu[category].push(itemData);
-                    showToast('New menu item added successfully!');
                 }
-                
-                // Update the master inventory list
-                const inventoryIndex = state.inventory.findIndex(inv => inv.id === itemData.id);
-                const inventoryItemData = {
-                    ...itemData,
-                    supplier: inventoryIndex > -1 ? state.inventory[inventoryIndex].supplier : 'Gourmet Foods Inc.',
-                    lowStockThreshold: inventoryIndex > -1 ? state.inventory[inventoryIndex].lowStockThreshold : 10
-                };
-                if (inventoryIndex > -1) {
-                    state.inventory[inventoryIndex] = inventoryItemData;
-                } else {
-                    state.inventory.push(inventoryItemData);
-                }
+                state.menu[category].push(itemData);
+                showToast(`Menu item ${itemId ? 'updated' : 'added'} successfully!`);
 
                 $('#menuItemModal').modal('hide');
                 render();
@@ -2096,23 +2167,37 @@
             $('body').on('click', '.remove-menu-item-btn', function() {
                 const itemId = $(this).data('item-id');
                 Swal.fire({
-                    title: 'Are you sure?',
-                    text: "You won't be able to revert this!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, delete it!'
+                    title: 'Are you sure?', text: "This will remove the item from the menu.",
+                    icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, delete it!'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         for (const category in state.menu) {
                             state.menu[category] = state.menu[category].filter(item => item.id !== itemId);
                         }
-                        state.inventory = state.inventory.filter(inv => inv.id !== itemId);
                         Swal.fire('Deleted!', 'The menu item has been deleted.', 'success');
                         render();
                     }
                 });
             });
 
+            $('body').on('click', '.remove-category-btn', function(e) {
+                e.stopPropagation();
+                const category = $(this).data('category');
+                if (state.menu[category] && state.menu[category].length > 0) {
+                    Swal.fire('Cannot Delete', 'Please remove all items from this category before deleting it.', 'error');
+                    return;
+                }
+                Swal.fire({
+                    title: `Delete '${category}'?`, text: "This action cannot be undone.",
+                    icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, delete it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        delete state.menu[category];
+                        Swal.fire('Deleted!', 'The category has been removed.', 'success');
+                        render();
+                    }
+                });
+            });
 
             // --- USER MANAGEMENT ---
             $('body').on('click', '#add-user-btn', function() {
@@ -2265,3 +2350,4 @@
     </script>
 </body>
 </html>
+
