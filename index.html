@@ -79,7 +79,7 @@
         .login-btn {
             background-color: var(--slate-800);
             border: none;
-            transition: background-color 0.3s, color 0.3s;
+            transition: background-color: 0.3s, color: 0.3s;
         }
         .login-btn:hover {
             background-color: var(--emerald-500);
@@ -1267,7 +1267,7 @@
                 }
             }
 
-            function createInventoryTableShell(category) {
+            function createInventoryTableShell(category, tableRowsHtml = '') {
                 return `
                     <div class="data-card rounded-4 shadow overflow-hidden">
                         <div class="table-responsive">
@@ -1282,12 +1282,13 @@
                                         <th class="p-3 text-end">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="${category}-inventory-body"></tbody>
+                                <tbody id="${category}-inventory-body">${tableRowsHtml}</tbody>
                             </table>
                         </div>
                     </div>
                 `;
             }
+
 
             function getInventoryTableRows(category, items) {
                 if (!items || items.length === 0) {
@@ -1442,7 +1443,7 @@
                 const uniqueYears = [...new Set(state.orders.map(o => new Date(o.timestamp).getFullYear()))].sort((a,b) => b-a);
                 const yearOptions = uniqueYears.map(y => `<option value="${y}" ${y === state.report.year ? 'selected' : ''}>${y}</option>`).join('');
                 const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-                const monthOptions = monthNames.map((m, i) => `<option value="${i}" ${i === state.report.month ? 'selected' : ''}>${m}</option>`).join('');
+                const monthOptions = monthNames.map((m, i) => `<option value="${i}" ${i == state.report.month ? 'selected' : ''}>${m}</option>`).join('');
 
                 const salesContent = `
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -1483,9 +1484,10 @@
                     allItems = allItems.filter(item => item.name.toLowerCase().includes(nameFilter));
                 }
                 if (categoryFilter) {
-                    const categoryMap = { 'kitchen': state.inventory.kitchen, 'bar': state.inventory.bar, 'general': state.inventory.general };
-                    const categoryItems = categoryMap[categoryFilter].map(i => i.id);
-                    allItems = allItems.filter(item => categoryItems.includes(item.id));
+                    allItems = allItems.filter(item => {
+                         const itemCategory = Object.keys(state.inventory).find(key => state.inventory[key].some(i => i.id === item.id));
+                         return itemCategory === categoryFilter;
+                    });
                 }
                 if (statusFilter) {
                     if (statusFilter === 'low') {
@@ -1501,7 +1503,7 @@
                 const fullInventory = [...state.inventory.kitchen, ...state.inventory.bar, ...state.inventory.general];
                 const lowStockCount = fullInventory.filter(i => i.stock <= i.lowStockThreshold && i.stock > 0).length;
                 const outOfStockCount = fullInventory.filter(i => i.stock === 0).length;
-                const totalValue = fullInventory.reduce((sum, item) => sum + (item.cost * item.stock), 0);
+                const totalValue = fullInventory.reduce((sum, item) => sum + ((item.cost || 0) * item.stock), 0);
                 
                 const tableRows = getInventoryTableRows('report', allItems); // Reuse the same row builder
 
@@ -1559,11 +1561,10 @@
                              </div>
                          </div>
                      </div>
-                     ${createInventoryTableShell('inventory-report')}
+                     ${createInventoryTableShell('inventory-report', tableRows)}
                 `;
 
                 $('#inventory-report-pane').html(inventoryContent);
-                $('#inventory-report-body').html(tableRows);
                  // Preserve filter values
                 $('#inventory-report-search').val(nameFilter);
                 $('#inventory-report-category-filter').val(categoryFilter);
