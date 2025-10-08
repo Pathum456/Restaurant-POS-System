@@ -79,7 +79,7 @@
         .login-btn {
             background-color: var(--slate-800);
             border: none;
-            transition: background-color: 0.3s, color: 0.3s;
+            transition: background-color 0.3s, color 0.3s;
         }
         .login-btn:hover {
             background-color: var(--emerald-500);
@@ -818,6 +818,20 @@
                  return diff;
              }
 
+            function downloadCSV(csvContent, fileName) {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                if (link.download !== undefined) { 
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", fileName);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+
 
 
             // --- RENDER FUNCTIONS ---
@@ -1459,6 +1473,7 @@
                                 <option value="all">All Months</option>
                                 ${monthOptions}
                             </select>
+                            <button class="btn btn-sm btn-outline-success ms-2" id="download-sales-report"><i class="bi bi-download me-2"></i>Download Excel</button>
                         </div>
                    </div>
                    <div style="position: relative; height:60vh">
@@ -1471,15 +1486,13 @@
                 createSalesChart();
             }
 
-             function renderInventoryReport() {
-                // Get current filter values before re-rendering
+            function renderInventoryReport() {
                 const nameFilter = $('#inventory-report-search').val()?.toLowerCase() || '';
                 const categoryFilter = $('#inventory-report-category-filter').val() || '';
                 const statusFilter = $('#inventory-report-status-filter').val() || '';
 
                 let allItems = [...state.inventory.kitchen, ...state.inventory.bar, ...state.inventory.general];
                 
-                // Filtering logic
                 if (nameFilter) {
                     allItems = allItems.filter(item => item.name.toLowerCase().includes(nameFilter));
                 }
@@ -1499,13 +1512,12 @@
                     }
                 }
 
-                // Calculate stats
                 const fullInventory = [...state.inventory.kitchen, ...state.inventory.bar, ...state.inventory.general];
                 const lowStockCount = fullInventory.filter(i => i.stock <= i.lowStockThreshold && i.stock > 0).length;
                 const outOfStockCount = fullInventory.filter(i => i.stock === 0).length;
                 const totalValue = fullInventory.reduce((sum, item) => sum + ((item.cost || 0) * item.stock), 0);
                 
-                const tableRows = getInventoryTableRows('report', allItems); // Reuse the same row builder
+                const tableRows = getInventoryTableRows('report', allItems);
 
                 const inventoryContent = `
                      <div class="row g-4 mb-4">
@@ -1536,28 +1548,33 @@
                     </div>
 
                     <div class="data-card p-3 rounded-4 shadow mb-4">
-                         <div class="row g-2 align-items-end">
-                             <div class="col-md-5">
-                                 <label for="inventory-report-search" class="form-label small">Search by Name</label>
-                                 <input type="text" id="inventory-report-search" class="form-control form-control-dark" placeholder="e.g., Pizza Dough">
+                         <div class="d-flex justify-content-between align-items-end flex-wrap gap-3">
+                             <div class="d-flex align-items-end gap-2 flex-grow-1">
+                                 <div style="flex-basis: 40%;">
+                                     <label for="inventory-report-search" class="form-label small">Search by Name</label>
+                                     <input type="text" id="inventory-report-search" class="form-control form-control-dark" placeholder="e.g., Pizza Dough">
+                                 </div>
+                                 <div style="flex-basis: 30%;">
+                                     <label for="inventory-report-category-filter" class="form-label small">Filter by Category</label>
+                                     <select id="inventory-report-category-filter" class="form-select form-select-dark">
+                                         <option value="">All Categories</option>
+                                         <option value="kitchen">Kitchen</option>
+                                         <option value="bar">Bar</option>
+                                         <option value="general">General</option>
+                                     </select>
+                                 </div>
+                                 <div style="flex-basis: 25%;">
+                                     <label for="inventory-report-status-filter" class="form-label small">Filter by Status</label>
+                                     <select id="inventory-report-status-filter" class="form-select form-select-dark">
+                                         <option value="">All Statuses</option>
+                                         <option value="in_stock">In Stock</option>
+                                         <option value="low">Low Stock</option>
+                                         <option value="out">Out of Stock</option>
+                                     </select>
+                                 </div>
                              </div>
-                             <div class="col-md-4">
-                                 <label for="inventory-report-category-filter" class="form-label small">Filter by Category</label>
-                                 <select id="inventory-report-category-filter" class="form-select form-select-dark">
-                                     <option value="">All Categories</option>
-                                     <option value="kitchen">Kitchen</option>
-                                     <option value="bar">Bar</option>
-                                     <option value="general">General</option>
-                                 </select>
-                             </div>
-                             <div class="col-md-3">
-                                 <label for="inventory-report-status-filter" class="form-label small">Filter by Status</label>
-                                 <select id="inventory-report-status-filter" class="form-select form-select-dark">
-                                     <option value="">All Statuses</option>
-                                     <option value="in_stock">In Stock</option>
-                                     <option value="low">Low Stock</option>
-                                     <option value="out">Out of Stock</option>
-                                 </select>
+                             <div class="flex-shrink-0">
+                                 <button class="btn btn-sm btn-outline-success" id="download-inventory-report"><i class="bi bi-download me-2"></i>Download Excel</button>
                              </div>
                          </div>
                      </div>
@@ -2141,7 +2158,7 @@
 
 
             // Billing Modal: Process Payment
-            $('#billingModal').on('click', '.payment-btn', function() {
+            $('body').on('click', '.payment-btn', function() {
                 const total = $(this).data('total');
                 const table = state.tables.find(t => t.id === state.activeModalTableId);
                 
@@ -2693,6 +2710,97 @@
                     renderInventoryReport();
                 }
             });
+            
+            function handleDownloadSalesReport() {
+                let filteredOrders = [];
+                const today = new Date('2025-10-08T10:53:00');
+                const completedOrders = state.orders.filter(o => o.status === 'completed');
+
+                switch(state.report.range) {
+                    case 'custom':
+                        const reportYear = state.report.year;
+                        const reportMonth = state.report.month;
+                        filteredOrders = completedOrders.filter(order => {
+                            const orderDate = new Date(order.timestamp);
+                            if (reportMonth === 'all') {
+                                return orderDate.getFullYear() === reportYear;
+                            } else {
+                                return orderDate.getFullYear() === reportYear && orderDate.getMonth() === parseInt(reportMonth);
+                            }
+                        });
+                        break;
+                    case '7days':
+                    default:
+                        const sevenDaysAgo = new Date(today);
+                        sevenDaysAgo.setDate(today.getDate() - 6);
+                        sevenDaysAgo.setHours(0, 0, 0, 0);
+                        filteredOrders = completedOrders.filter(order => {
+                            const orderDate = new Date(order.timestamp);
+                            return orderDate >= sevenDaysAgo && orderDate <= today;
+                        });
+                        break;
+                }
+
+                let csvRows = [];
+                const headers = ["Order ID", "Timestamp", "Table Name", "Items Count", "Total"];
+                csvRows.push(headers.join(','));
+
+                for (const order of filteredOrders) {
+                    const row = [
+                        order.id,
+                        new Date(order.timestamp).toLocaleString(),
+                        `"${order.tableName}"`,
+                        order.items.length,
+                        order.total.toFixed(2)
+                    ].join(',');
+                    csvRows.push(row);
+                }
+
+                downloadCSV(csvRows.join('\n'), `sales-report-${new Date().toISOString().split('T')[0]}.csv`);
+                showToast('Sales report download started.');
+            }
+
+            function handleDownloadInventoryReport() {
+                const nameFilter = $('#inventory-report-search').val()?.toLowerCase() || '';
+                const categoryFilter = $('#inventory-report-category-filter').val() || '';
+                const statusFilter = $('#inventory-report-status-filter').val() || '';
+                let allItems = [...state.inventory.kitchen, ...state.inventory.bar, ...state.inventory.general];
+                
+                if (nameFilter) allItems = allItems.filter(item => item.name.toLowerCase().includes(nameFilter));
+                if (categoryFilter) {
+                    allItems = allItems.filter(item => {
+                         const itemCategory = Object.keys(state.inventory).find(key => state.inventory[key].some(i => i.id === item.id));
+                         return itemCategory === categoryFilter;
+                    });
+                }
+                if (statusFilter) {
+                    if (statusFilter === 'low') allItems = allItems.filter(item => item.stock <= item.lowStockThreshold && item.stock > 0);
+                    else if (statusFilter === 'out') allItems = allItems.filter(item => item.stock === 0);
+                    else if (statusFilter === 'in_stock') allItems = allItems.filter(item => item.stock > item.lowStockThreshold);
+                }
+
+                const headers = ["Ingredient", "Category", "Unit", "Current Stock", "Low Stock Threshold", "Status", "Supplier", "Unit Cost", "Total Value"];
+                let csvRows = [headers.join(',')];
+
+                for (const item of allItems) {
+                    const itemCategory = Object.keys(state.inventory).find(key => state.inventory[key].some(i => i.id === item.id)) || 'N/A';
+                    const status = item.stock === 0 ? 'Out of Stock' : (item.stock <= item.lowStockThreshold ? 'Low Stock' : 'In Stock');
+                    const totalValue = (item.cost || 0) * item.stock;
+
+                    const row = [
+                        `"${item.name}"`, itemCategory, item.unit, item.stock,
+                        item.lowStockThreshold, status, `"${item.supplier || 'N/A'}"`,
+                        (item.cost || 0).toFixed(2), totalValue.toFixed(2)
+                    ].join(',');
+                    csvRows.push(row);
+                }
+
+                downloadCSV(csvRows.join('\n'), `inventory-report-${new Date().toISOString().split('T')[0]}.csv`);
+                showToast('Inventory report download started.');
+            }
+
+            $('body').on('click', '#download-sales-report', handleDownloadSalesReport);
+            $('body').on('click', '#download-inventory-report', handleDownloadInventoryReport);
 
 
             // Save active inventory tab
