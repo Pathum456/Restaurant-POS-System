@@ -56,6 +56,11 @@
         .swal2-cancel {
             background-color: var(--slate-600) !important;
         }
+        .swal2-input {
+             background-color: var(--slate-700) !important;
+             color: white !important;
+             border-color: var(--slate-600) !important;
+        }
         .swal2-toast .swal2-title {
             color: white !important;
             margin: 0.5em 1em;
@@ -400,7 +405,7 @@
         </div>
     </div>
     
-    <!-- Inventory Management Modal -->
+    <!-- Inventory Management Modal (Placeholder) -->
     <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4">
@@ -627,10 +632,10 @@
                 };
 
                 state.tables = Array.from({ length: 12 }, (_, i) => ({
-                  id: i + 1,
-                  name: `Table ${i + 1}`,
-                  status: 'available',
-                  order: [], // Will hold multiple order objects
+                    id: i + 1,
+                    name: `Table ${i + 1}`,
+                    status: 'available',
+                    order: [], // Will hold multiple order objects
                 }));
 
                 state.inventory = Object.values(state.menu).flat().map(item => ({
@@ -640,12 +645,12 @@
                 }));
                 
                 state.users = {
-                  'admin': { id: 'admin', name: 'Alex Green', role: 'Admin' },
-                  'manager': { id: 'manager', name: 'Brenda Smith', role: 'Manager' },
-                  'waiter': { id: 'waiter', name: 'Charles Davis', role: 'Waiter' },
-                  'kitchen': { id: 'kitchen', name: 'Diana Prince', role: 'Kitchen' },
-                  'cashier': { id: 'cashier', name: 'Edward Frank', role: 'Cashier' },
-                  'bartender': {id: 'bartender', name: 'Fiona Gable', role: 'Bartender'}
+                    'admin': { id: 'admin', name: 'Alex Green', role: 'Admin' },
+                    'manager': { id: 'manager', name: 'Brenda Smith', role: 'Manager' },
+                    'waiter': { id: 'waiter', name: 'Charles Davis', role: 'Waiter' },
+                    'kitchen': { id: 'kitchen', name: 'Diana Prince', role: 'Kitchen' },
+                    'cashier': { id: 'cashier', name: 'Edward Frank', role: 'Cashier' },
+                    'bartender': {id: 'bartender', name: 'Fiona Gable', role: 'Bartender'}
                 };
             }
 
@@ -687,7 +692,7 @@
             
             function showToast(message, type = 'success') {
                 const toastId = `toast-${Date.now()}`;
-                const toastBg = type === 'success' ? 'bg-success' : 'bg-danger';
+                const toastBg = type === 'success' ? 'bg-success' : (type === 'danger' ? 'bg-danger' : 'bg-info');
                 const toastHtml = `
                     <div id="${toastId}" class="toast align-items-center text-white ${toastBg} border-0" role="alert" aria-live="assertive" aria-atomic="true">
                         <div class="d-flex">
@@ -705,29 +710,29 @@
             }
             
              function getCategoryByItemId(itemId) {
-                for (const category in state.menu) {
-                    if (state.menu[category].some(item => item.id === itemId)) {
-                        return category;
-                    }
-                }
-                return null;
-            }
+                 for (const category in state.menu) {
+                     if (state.menu[category].some(item => item.id === itemId)) {
+                         return category;
+                     }
+                 }
+                 return null;
+             }
 
              function calculateOrderDifference(oldOrder, newOrder) {
-                const diff = [];
-                const oldOrderMap = new Map((oldOrder || []).map(item => [item.customId || item.id, item.quantity]));
+                 const diff = [];
+                 const oldOrderMap = new Map((oldOrder || []).map(item => [item.customId || item.id, item.quantity]));
 
-                for (const newItem of newOrder) {
-                    const key = newItem.customId || newItem.id;
-                    const oldQuantity = oldOrderMap.get(key) || 0;
-                    const quantityDiff = newItem.quantity - oldQuantity;
+                 for (const newItem of newOrder) {
+                     const key = newItem.customId || newItem.id;
+                     const oldQuantity = oldOrderMap.get(key) || 0;
+                     const quantityDiff = newItem.quantity - oldQuantity;
 
-                    if (quantityDiff > 0) {
-                        diff.push({ ...newItem, quantity: quantityDiff });
-                    }
-                }
-                return diff;
-            }
+                     if (quantityDiff > 0) {
+                         diff.push({ ...newItem, quantity: quantityDiff });
+                     }
+                 }
+                 return diff;
+             }
 
 
 
@@ -788,12 +793,12 @@
                 `).join('');
                 
                  let newOrderButtons = '';
-                if(['Admin', 'Manager', 'Waiter', 'Cashier'].includes(state.currentUser.role)) {
-                    newOrderButtons = `
-                        <button class="btn btn-outline-success ms-2 new-order-btn" data-order-type="Take Away"><i class="bi bi-bag me-2"></i>Take Away</button>
-                        <button class="btn btn-outline-primary ms-2 new-order-btn" data-order-type="Delivery"><i class="bi bi-truck me-2"></i>Delivery</button>
-                    `;
-                }
+                 if(['Admin', 'Manager', 'Waiter', 'Cashier'].includes(state.currentUser.role)) {
+                     newOrderButtons = `
+                         <button class="btn btn-outline-success ms-2 new-order-btn" data-order-type="Take Away"><i class="bi bi-bag me-2"></i>Take Away</button>
+                         <button class="btn btn-outline-primary ms-2 new-order-btn" data-order-type="Delivery"><i class="bi bi-truck me-2"></i>Delivery</button>
+                     `;
+                 }
 
 
                 const mobileNavHtml = links.map(page => `
@@ -858,7 +863,7 @@
                         <div class="d-flex justify-content-between align-items-center mb-4">
                              <h1 class="text-3xl fw-bold text-white mb-0">Table Layout</h1>
                              <button class="btn btn-success d-flex align-items-center" id="add-table-btn">
-                                <i class="bi bi-plus-circle me-2"></i> Add Table
+                                 <i class="bi bi-plus-circle me-2"></i> Add Table
                              </button>
                         </div>
                     `;
@@ -1145,7 +1150,7 @@
                         filteredInventory = filteredInventory.filter(item => item.stock <= item.lowStockThreshold);
                     }
                 }
-    
+   
                 const tableRows = filteredInventory.map(item => `
                     <tr class="align-middle">
                         <td class="p-3 fw-medium text-white">${item.name}</td>
@@ -1154,8 +1159,8 @@
                         <td class="p-3 text-end font-monospace">${item.stock}</td>
                         <td class="p-3">
                              ${item.stock > item.lowStockThreshold 
-                                ? `<span class="badge bg-success-subtle text-success-emphasis rounded-pill">In Stock</span>`
-                                : `<span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Low Stock</span>`
+                                 ? `<span class="badge bg-success-subtle text-success-emphasis rounded-pill">In Stock</span>`
+                                 : `<span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Low Stock</span>`
                              }
                         </td>
                         <td class="p-3 text-center">
@@ -1226,7 +1231,7 @@
                             <h3 class="fs-5 fw-bold text-white p-3 border-bottom border-secondary">${category}</h3>
                             <div>
                                 ${state.menu[category].map(item => `
-                                     <div class="menu-item-row p-3 d-flex justify-content-between align-items-center">
+                                    <div class="menu-item-row p-3 d-flex justify-content-between align-items-center">
                                         <div>
                                             <div class="fw-bold text-white">${item.name}</div>
                                             <div class="text-slate-400 small">$${item.price.toFixed(2)}</div>
@@ -1235,21 +1240,21 @@
                                             <button class="btn btn-sm btn-outline-primary me-2 edit-menu-item-btn" data-item-id="${item.id}"><i class="bi bi-pencil"></i> Edit</button>
                                             <button class="btn btn-sm btn-outline-danger remove-menu-item-btn" data-item-id="${item.id}"><i class="bi bi-trash"></i> Remove</button>
                                         </div>
-                                    </div>
+                                   </div>
                                 `).join('')}
                             </div>
                         </div>
-                     `;
+                      `;
                 }
 
                 const content = `
                      <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h1 class="text-3xl fw-bold text-white mb-0">Menu Management</h1>
-                        <button class="btn btn-success d-flex align-items-center" id="add-menu-item-btn">
-                            <i class="bi bi-plus-circle me-2"></i> Add New Item
-                        </button>
-                    </div>
-                    ${menuHtml}
+                         <h1 class="text-3xl fw-bold text-white mb-0">Menu Management</h1>
+                         <button class="btn btn-success d-flex align-items-center" id="add-menu-item-btn">
+                             <i class="bi bi-plus-circle me-2"></i> Add New Item
+                         </button>
+                     </div>
+                     ${menuHtml}
                 `;
                 $('#main-content').html(content);
             }
@@ -1287,17 +1292,17 @@
 
             function renderReportsPage() {
                  const content = `
-                    <h1 class="text-3xl fw-bold text-white mb-4">Sales Report</h1>
-                     <div class="row g-4">
-                        <div class="col-12">
-                            <div class="data-card p-4 rounded-4 shadow">
-                                <h2 class="fs-5 fw-bold text-white mb-3">Sales Over Time (Last 7 Days)</h2>
-                                <div style="position: relative; height:60vh">
-                                    <canvas id="salesChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                     <h1 class="text-3xl fw-bold text-white mb-4">Sales Report</h1>
+                       <div class="row g-4">
+                           <div class="col-12">
+                               <div class="data-card p-4 rounded-4 shadow">
+                                   <h2 class="fs-5 fw-bold text-white mb-3">Sales Over Time (Last 7 Days)</h2>
+                                   <div style="position: relative; height:60vh">
+                                       <canvas id="salesChart"></canvas>
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
                 `;
                 $('#main-content').html(content);
                 
@@ -1364,24 +1369,21 @@
 
             function renderMenu() {
                  const menuContainer = $('#menu-container');
-                menuContainer.empty();
-                $.each(state.menu, (category, items) => {
-                    if (state.activeOrder.orderType !== 'Dining' && (category === 'Liqueur' || category === 'Beverages')) {
-                        return true; // continue in jQuery.each
-                    }
-                    const itemsHtml = items.map(item => `
-                        <div class="col">
-                            <button class="btn menu-item-btn w-100 text-start p-3 rounded-3 menu-item" data-item-id="${item.id}" ${item.stock <= 0 ? 'disabled' : ''}>
-                                <div class="fw-semibold">${item.name} ${item.stock <= 0 ? '<span class="text-danger small">(Out of Stock)</span>' : ''}</div>
-                                <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
-                            </button>
-                        </div>
-                    `).join('');
-                    menuContainer.append(`
-                        <h4 class="text-emerald fw-bold fs-6 mb-2">${category}</h4>
-                        <div class="row row-cols-1 row-cols-sm-2 g-2 mb-3">${itemsHtml}</div>
-                    `);
-                });
+                 menuContainer.empty();
+                 $.each(state.menu, (category, items) => {
+                     const itemsHtml = items.map(item => `
+                         <div class="col">
+                             <button class="btn menu-item-btn w-100 text-start p-3 rounded-3 menu-item" data-item-id="${item.id}" ${item.stock <= 0 ? 'disabled' : ''}>
+                                 <div class="fw-semibold">${item.name} ${item.stock <= 0 ? '<span class="text-danger small">(Out of Stock)</span>' : ''}</div>
+                                 <div class="small text-slate-300">$${item.price.toFixed(2)}</div>
+                             </button>
+                         </div>
+                     `).join('');
+                     menuContainer.append(`
+                         <h4 class="text-emerald fw-bold fs-6 mb-2">${category}</h4>
+                         <div class="row row-cols-1 row-cols-sm-2 g-2 mb-3">${itemsHtml}</div>
+                     `);
+                 });
             }
             
             function renderCustomerDetails() {
@@ -1390,7 +1392,7 @@
                     <div class="row g-2 mb-3">
                         <div class="col-sm-6">
                             <label class="form-label small">Order Type</label>
-                            <select id="order-type-select" class="form-select form-select-dark">
+                            <select id="order-type-select" class="form-select form-select-dark" ${state.activeModalTableId !== null ? 'disabled' : ''}>
                                 <option value="Dining" ${state.activeOrder.orderType === 'Dining' ? 'selected' : ''}>Dining</option>
                                 <option value="Take Away" ${state.activeOrder.orderType === 'Take Away' ? 'selected' : ''}>Take Away</option>
                                 <option value="Delivery" ${state.activeOrder.orderType === 'Delivery' ? 'selected' : ''}>Delivery</option>
@@ -1399,9 +1401,9 @@
                         <div class="col-sm-6" id="delivery-method-wrapper" style="display: ${state.activeOrder.orderType === 'Delivery' ? 'block' : 'none'};">
                              <label class="form-label small">Delivery Method</label>
                              <select id="delivery-method-select" class="form-select form-select-dark">
-                                <option value="uber" ${state.activeOrder.deliveryMethod === 'uber' ? 'selected' : ''}>Uber</option>
-                                <option value="pickme" ${state.activeOrder.deliveryMethod === 'pickme' ? 'selected' : ''}>PickMe</option>
-                                <option value="self" ${state.activeOrder.deliveryMethod === 'self' ? 'selected' : ''}>Self Delivery</option>
+                                 <option value="uber" ${state.activeOrder.deliveryMethod === 'uber' ? 'selected' : ''}>Uber</option>
+                                 <option value="pickme" ${state.activeOrder.deliveryMethod === 'pickme' ? 'selected' : ''}>PickMe</option>
+                                 <option value="self" ${state.activeOrder.deliveryMethod === 'self' ? 'selected' : ''}>Self Delivery</option>
                              </select>
                         </div>
                     </div>
@@ -1409,23 +1411,23 @@
                 if (state.activeOrder.orderType === 'Take Away' || state.activeOrder.orderType === 'Delivery') {
                     detailsHtml += `
                          <div class="row g-2">
-                            <div class="col-md-6">
-                                <label class="form-label small">Customer Name</label>
-                                <input type="text" id="customer-name-input" class="form-control form-control-dark" value="${state.activeOrder.customerName}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small">Contact Number</label>
-                                <input type="tel" id="customer-contact-input" class="form-control form-control-dark" value="${state.activeOrder.customerContact || ''}">
-                            </div>
-                            ${state.activeOrder.orderType === 'Delivery' ? `
-                            <div class="col-12">
-                                <label class="form-label small">Delivery Address</label>
-                                <input type="text" id="customer-address-input" class="form-control form-control-dark" value="${state.activeOrder.customerAddress}">
-                            </div>
+                             <div class="col-md-6">
+                                 <label class="form-label small">Customer Name</label>
+                                 <input type="text" id="customer-name-input" class="form-control form-control-dark" value="${state.activeOrder.customerName}">
+                             </div>
+                             <div class="col-md-6">
+                                 <label class="form-label small">Contact Number</label>
+                                 <input type="tel" id="customer-contact-input" class="form-control form-control-dark" value="${state.activeOrder.customerContact || ''}">
+                             </div>
+                             ${state.activeOrder.orderType === 'Delivery' ? `
                              <div class="col-12">
-                                <label class="form-label small">Reference Number</label>
-                                <input type="text" id="reference-number-input" class="form-control form-control-dark" placeholder="e.g., Uber Eats #12345" value="${state.activeOrder.referenceNumber || ''}">
-                            </div>` : ''}
+                                 <label class="form-label small">Delivery Address</label>
+                                 <input type="text" id="customer-address-input" class="form-control form-control-dark" value="${state.activeOrder.customerAddress}">
+                             </div>
+                              <div class="col-12">
+                                 <label class="form-label small">Reference Number</label>
+                                 <input type="text" id="reference-number-input" class="form-control form-control-dark" placeholder="e.g., Uber Eats #12345" value="${state.activeOrder.referenceNumber || ''}">
+                             </div>` : ''}
                          </div>
                     `;
                 }
@@ -1593,33 +1595,33 @@
 
                 if (table.status === 'billing') {
                      if (userRole === 'Cashier' || userRole === 'Admin' || userRole === 'Manager') {
-                        openBillingModal(tableId);
-                    } else if (userRole === 'Waiter') {
-                        openOrderModal(tableId, 'Dining');
-                    }
-                     else {
-                        Swal.fire({
-                            title: 'Billing in Progress',
-                            text: `The bill for ${table.name} is ready. The cashier will process the payment.`,
-                            icon: 'info'
-                        });
+                         openBillingModal(tableId);
+                     } else if (userRole === 'Waiter') {
+                         openOrderModal(tableId, 'Dining');
+                     }
+                      else {
+                         Swal.fire({
+                             title: 'Billing in Progress',
+                             text: `The bill for ${table.name} is ready. The cashier will process the payment.`,
+                             icon: 'info'
+                         });
                     }
                 } else if (table.status === 'available' || table.status === 'occupied') {
                     if (userRole === 'Waiter' || userRole === 'Admin' || userRole === 'Manager') {
                          openOrderModal(tableId, 'Dining');
                     } else {
                          Swal.fire({
-                            title: 'Action Not Allowed',
-                            text: 'Only Waiters, Managers, or Admins can place or modify orders.',
-                            icon: 'warning'
-                        });
+                             title: 'Action Not Allowed',
+                             text: 'Only Waiters, Managers, or Admins can place or modify orders.',
+                             icon: 'warning'
+                         });
                     }
                 } else {
                      Swal.fire({
-                        title: `Table Status: ${table.status}`,
-                        text: `${table.name} is currently ${table.status}.`,
-                        icon: 'info'
-                    });
+                         title: `Table Status: ${table.status}`,
+                         text: `${table.name} is currently ${table.status}.`,
+                         icon: 'info'
+                     });
                 }
             });
 
@@ -1636,24 +1638,24 @@
                     itemData.modifiers.forEach(mod => {
                         modifiersContainer.append(`
                              <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="${mod.price}" id="mod-${mod.name.replace(/\s+/g, '')}" data-name="${mod.name}">
-                                <label class="form-check-label" for="mod-${mod.name.replace(/\s+/g, '')}">
-                                    ${mod.name} <span class="text-muted">(+$${mod.price.toFixed(2)})</span>
-                                </label>
-                            </div>
+                                 <input class="form-check-input" type="checkbox" value="${mod.price}" id="mod-${mod.name.replace(/\s+/g, '')}" data-name="${mod.name}">
+                                 <label class="form-check-label" for="mod-${mod.name.replace(/\s+/g, '')}">
+                                     ${mod.name} <span class="text-muted">(+$${mod.price.toFixed(2)})</span>
+                                 </label>
+                             </div>
                         `);
                     });
                     const customizationModal = new bootstrap.Modal(document.getElementById('itemCustomizationModal'));
                     customizationModal.show();
                 } else {
                      const existingItem = state.activeOrder.items.find(item => item.id === itemId && !item.modifiers);
-                    if (existingItem) {
-                        existingItem.quantity++;
-                    } else {
-                        state.activeOrder.items.push({ ...itemData, quantity: 1, customId: Date.now() });
-                    }
-                    const isOrderLocked = state.kitchenOrders.some(ko => ko.tableId === state.activeModalTableId && (ko.status === 'preparing' || ko.status === 'ready'));
-                    updateOrderSummary(state.activeOrder.items, isOrderLocked);
+                     if (existingItem) {
+                         existingItem.quantity++;
+                     } else {
+                         state.activeOrder.items.push({ ...itemData, quantity: 1, customId: Date.now() });
+                     }
+                     const isOrderLocked = state.kitchenOrders.some(ko => ko.tableId === state.activeModalTableId && (ko.status === 'preparing' || ko.status === 'ready'));
+                     updateOrderSummary(state.activeOrder.items, isOrderLocked);
                 }
             });
 
@@ -1661,7 +1663,6 @@
             $('#orderModal').on('change', '#order-type-select', function() {
                 state.activeOrder.orderType = $(this).val();
                 renderCustomerDetails();
-                renderMenu(); // Re-render menu to show/hide categories
             });
 
 
@@ -1899,35 +1900,221 @@
                 render();
             });
 
-            // Inventory: Search/Filter
+            // Inventory: Search/Filter and Restock
             $('body').on('input change', '#inventory-search-name, #inventory-search-category, #inventory-search-status', function() {
                 renderInventoryPage();
             });
-            
-            // Menu: Add/Edit Item
-            $('body').on('click', '#add-menu-item-btn', function() {
-                openMenuItemModal();
-            });
 
-            $('body').on('click', '.edit-menu-item-btn', function() {
+            $('body').on('click', '.restock-btn', function() {
                 const itemId = $(this).data('item-id');
-                openMenuItemModal(itemId);
+                 const item = state.inventory.find(i => i.id === itemId);
+                Swal.fire({
+                    title: `Restock ${item.name}`,
+                    input: 'number',
+                    inputLabel: 'Quantity to add',
+                    inputValue: 50,
+                    showCancelButton: true,
+                    confirmButtonText: 'Restock',
+                }).then((result) => {
+                    if (result.isConfirmed && result.value) {
+                         const quantity = parseInt(result.value);
+                         if(quantity > 0) {
+                             item.stock += quantity;
+                             showToast(`${item.name} restocked successfully.`);
+                             renderInventoryPage();
+                         }
+                    }
+                });
             });
             
-            // Menu Modal: Toggle Modifiers
-            $('body').on('change', '#menu-item-customizable', function() {
-                $('#modifiers-management-section').toggle(this.checked);
+            // --- MENU MANAGEMENT ---
+            function openMenuItemModal(itemId = null) {
+                $('#menu-item-form')[0].reset();
+                $('#modifiers-list').empty();
+                $('#modifiers-management-section').hide();
+
+                const categorySelect = $('#menu-item-category');
+                categorySelect.empty();
+                 // Detach the change handler temporarily to prevent it from firing
+                 categorySelect.off('change');
+
+                Object.keys(state.menu).forEach(cat => {
+                    categorySelect.append(`<option value="${cat}">${cat}</option>`);
+                });
+                categorySelect.append('<option value="new_category" class="text-info">-- Add New Category --</option>');
+                
+                if (itemId) {
+                    let itemToEdit, originalCategory;
+                    for (const category in state.menu) {
+                        const foundItem = state.menu[category].find(item => item.id === itemId);
+                        if (foundItem) {
+                            itemToEdit = foundItem;
+                            originalCategory = category;
+                            break;
+                        }
+                    }
+
+                    if (itemToEdit) {
+                        $('#menuItemModalLabel').text('Edit Menu Item');
+                        $('#menu-item-id').val(itemToEdit.id);
+                        $('#menu-item-name').val(itemToEdit.name);
+                        $('#menu-item-price').val(itemToEdit.price.toFixed(2));
+                        $('#menu-item-stock').val(itemToEdit.stock);
+                        $('#menu-item-category').val(originalCategory);
+
+                        if (itemToEdit.customizable) {
+                            $('#menu-item-customizable').prop('checked', true).trigger('change');
+                            if (itemToEdit.modifiers) {
+                                itemToEdit.modifiers.forEach(mod => addModifierInput(mod));
+                            }
+                        }
+                    }
+                } else {
+                    $('#menuItemModalLabel').text('Add New Menu Item');
+                    $('#menu-item-id').val('');
+                }
+                // Re-attach the change handler
+                 categorySelect.on('change', handleNewCategory);
+                $('#menuItemModal').modal('show');
+            }
+
+            function addModifierInput(modifier = { name: '', price: '' }) {
+                $('#modifiers-list').append(`
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control form-control-dark modifier-name" placeholder="Modifier Name (e.g., Extra Cheese)" value="${modifier.name}" required>
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control form-control-dark modifier-price" placeholder="Price" step="0.01" min="0" value="${modifier.price}" required>
+                        <button class="btn btn-outline-danger remove-modifier-btn" type="button"><i class="bi bi-trash"></i></button>
+                    </div>
+                `);
+            }
+
+            function handleNewCategory() {
+                if ($(this).val() === 'new_category') {
+                    Swal.fire({
+                        title: 'Enter New Category Name',
+                        input: 'text',
+                        showCancelButton: true,
+                        confirmButtonText: 'Create & Select',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        const categorySelect = $('#menu-item-category');
+                        if (result.isConfirmed && result.value) {
+                            const newCategoryName = result.value.trim();
+                            if (newCategoryName && !state.menu[newCategoryName]) {
+                                state.menu[newCategoryName] = [];
+                                // Remove old 'new category' option, add the new one, then re-add 'new category' option
+                                categorySelect.find('option[value="new_category"]').remove();
+                                const newOption = new Option(newCategoryName, newCategoryName, true, true);
+                                categorySelect.append(newOption);
+                                categorySelect.append('<option value="new_category" class="text-info">-- Add New Category --</option>');
+                                categorySelect.val(newCategoryName); // Explicitly set value
+                                showToast(`Category "${newCategoryName}" created.`, 'success');
+                            } else if (state.menu[newCategoryName]) {
+                                categorySelect.val(newCategoryName);
+                                showToast(`Category "${newCategoryName}" already exists.`, 'info');
+                            } else {
+                                categorySelect.prop('selectedIndex', 0);
+                            }
+                        } else {
+                            categorySelect.prop('selectedIndex', 0);
+                        }
+                    });
+                }
+            }
+             
+            $('body').on('click', '#add-menu-item-btn', () => openMenuItemModal());
+            $('body').on('click', '.edit-menu-item-btn', function() { openMenuItemModal($(this).data('item-id')); });
+
+            $('body').on('change', '#menu-item-customizable', function() { $('#modifiers-management-section').toggle(this.checked); });
+            $('body').on('click', '#add-modifier-btn', () => addModifierInput());
+            $('body').on('click', '.remove-modifier-btn', function() { $(this).closest('.input-group').remove(); });
+            
+            $('#menu-item-form').on('submit', function(e) {
+                e.preventDefault();
+                const itemId = parseInt($('#menu-item-id').val()) || null;
+                const category = $('#menu-item-category').val();
+
+                if (!category || category === 'new_category') {
+                    showToast('Please select a valid category.', 'danger');
+                    return;
+                }
+
+                const isCustomizable = $('#menu-item-customizable').is(':checked');
+                const modifiers = [];
+                if (isCustomizable) {
+                    $('#modifiers-list .input-group').each(function() {
+                        const name = $(this).find('.modifier-name').val();
+                        const price = parseFloat($(this).find('.modifier-price').val());
+                        if (name && !isNaN(price)) {
+                            modifiers.push({ name, price });
+                        }
+                    });
+                }
+
+                const itemData = {
+                    id: itemId || Date.now(),
+                    name: $('#menu-item-name').val(),
+                    price: parseFloat($('#menu-item-price').val()),
+                    stock: parseInt($('#menu-item-stock').val()),
+                    customizable: isCustomizable,
+                    modifiers: modifiers
+                };
+
+                if (itemId) { // Editing
+                    for (const cat in state.menu) {
+                        const itemIndex = state.menu[cat].findIndex(item => item.id === itemId);
+                        if (itemIndex > -1) {
+                            state.menu[cat].splice(itemIndex, 1);
+                            break;
+                        }
+                    }
+                    state.menu[category].push(itemData);
+                    showToast('Menu item updated successfully!');
+                } else { // Adding
+                    state.menu[category].push(itemData);
+                    showToast('New menu item added successfully!');
+                }
+                
+                // Update the master inventory list
+                const inventoryIndex = state.inventory.findIndex(inv => inv.id === itemData.id);
+                const inventoryItemData = {
+                    ...itemData,
+                    supplier: inventoryIndex > -1 ? state.inventory[inventoryIndex].supplier : 'Gourmet Foods Inc.',
+                    lowStockThreshold: inventoryIndex > -1 ? state.inventory[inventoryIndex].lowStockThreshold : 10
+                };
+                if (inventoryIndex > -1) {
+                    state.inventory[inventoryIndex] = inventoryItemData;
+                } else {
+                    state.inventory.push(inventoryItemData);
+                }
+
+                $('#menuItemModal').modal('hide');
+                render();
             });
             
-            // Menu Modal: Add/Remove Modifier Fields
-            $('body').on('click', '#add-modifier-btn', function() {
-                addModifierInput();
-            });
-             $('body').on('click', '.remove-modifier-btn', function() {
-                $(this).closest('.input-group').remove();
+            $('body').on('click', '.remove-menu-item-btn', function() {
+                const itemId = $(this).data('item-id');
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "You won't be able to revert this!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, delete it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        for (const category in state.menu) {
+                            state.menu[category] = state.menu[category].filter(item => item.id !== itemId);
+                        }
+                        state.inventory = state.inventory.filter(inv => inv.id !== itemId);
+                        Swal.fire('Deleted!', 'The menu item has been deleted.', 'success');
+                        render();
+                    }
+                });
             });
 
-            // User Management: Add/Edit User
+
+            // --- USER MANAGEMENT ---
             $('body').on('click', '#add-user-btn', function() {
                 $('#user-form')[0].reset();
                 $('#user-id').val('');
@@ -1962,7 +2149,6 @@
                 $('#userModal').modal('hide');
                 render();
             });
-            // User Management: Remove User
             $('body').on('click', '.remove-user-btn', function() {
                 const userId = $(this).data('user-id');
                 const user = state.users[userId];
@@ -1982,7 +2168,7 @@
                 });
             });
 
-            // Table Management (Admin only)
+            // --- TABLE MANAGEMENT ---
             $('body').on('click', '#add-table-btn', function() {
                 $('#table-form')[0].reset();
                 $('#table-id').val('');
@@ -2027,10 +2213,10 @@
                         cancelButtonText: 'No, keep it'
                     }).then((result) => {
                          if (result.isConfirmed) {
-                            state.tables = state.tables.filter(t => t.id !== tableId);
-                            Swal.fire('Removed!', `${table.name} has been removed.`, 'success');
-                            render();
-                        }
+                             state.tables = state.tables.filter(t => t.id !== tableId);
+                             Swal.fire('Removed!', `${table.name} has been removed.`, 'success');
+                             render();
+                         }
                     });
                 }
             });
@@ -2065,7 +2251,7 @@
             });
             
             // Handle focus after modals close to prevent accessibility issues
-            $('#orderModal, #billingModal, #userModal, #inventoryModal, #tableModal').on('hidden.bs.modal', function () {
+            $('.modal').on('hidden.bs.modal', function () {
                 if (document.activeElement) {
                     document.activeElement.blur();
                 }
@@ -2079,4 +2265,3 @@
     </script>
 </body>
 </html>
-
