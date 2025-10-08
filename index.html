@@ -158,11 +158,18 @@
             background-color: var(--slate-700);
         }
         
-        /* --- User/Reports Page --- */
-        .user-card {
+        /* --- User/Reports/Menu Page --- */
+        .user-card, .menu-category-card {
             background-color: var(--slate-800);
             border: 1px solid var(--slate-700);
         }
+        .menu-item-row {
+            border-bottom: 1px solid var(--slate-700);
+        }
+        .menu-item-row:last-child {
+            border-bottom: none;
+        }
+
 
         /* --- Inventory --- */
         .table-dark {
@@ -226,6 +233,9 @@
             font-size: 0.85rem;
             color: var(--slate-400);
             padding-left: 1rem;
+        }
+        #modifiers-list .input-group {
+            margin-bottom: 0.5rem;
         }
         
         /* --- Toast Notifications --- */
@@ -473,6 +483,61 @@
             </div>
         </div>
     </div>
+    
+    <!-- Menu Item Management Modal -->
+    <div class="modal fade" id="menuItemModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <form id="menu-item-form">
+                    <div class="modal-header">
+                        <h5 class="modal-title fs-4 fw-bold text-white" id="menuItemModalLabel">Add New Menu Item</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="menu-item-id">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="menu-item-name" class="form-label">Item Name</label>
+                                <input type="text" class="form-control form-control-dark" id="menu-item-name" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="menu-item-price" class="form-label">Price</label>
+                                <input type="number" class="form-control form-control-dark" id="menu-item-price" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="menu-item-category" class="form-label">Category</label>
+                                <select class="form-select form-select-dark" id="menu-item-category" required></select>
+                            </div>
+                             <div class="col-md-6 mb-3">
+                                <label for="menu-item-stock" class="form-label">Initial Stock</label>
+                                <input type="number" class="form-control form-control-dark" id="menu-item-stock" min="0" required>
+                            </div>
+                        </div>
+                        <hr class="border-secondary">
+                        <div class="form-check form-switch mb-3">
+                           <input class="form-check-input" type="checkbox" role="switch" id="menu-item-customizable">
+                           <label class="form-check-label" for="menu-item-customizable">Item is Customizable (has add-ons)</label>
+                        </div>
+                        <div id="modifiers-management-section" style="display: none;">
+                            <label class="form-label">Modifiers (Add-ons)</label>
+                            <div id="modifiers-list">
+                                <!-- Dynamic modifier inputs go here -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-info" id="add-modifier-btn"><i class="bi bi-plus"></i> Add Modifier</button>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3"></div>
@@ -697,8 +762,8 @@
 
             function renderHeader() {
                 const navLinks = {
-                    Admin: ['Dashboard', 'Tables', 'Kitchen', 'Bar', 'Inventory', 'Reports', 'Users'],
-                    Manager: ['Dashboard', 'Tables', 'Kitchen', 'Bar', 'Inventory', 'Reports'],
+                    Admin: ['Dashboard', 'Tables', 'Menu', 'Kitchen', 'Bar', 'Inventory', 'Reports', 'Users'],
+                    Manager: ['Dashboard', 'Tables', 'Menu', 'Kitchen', 'Bar', 'Inventory', 'Reports'],
                     Waiter: ['Tables'],
                     Kitchen: ['Kitchen'],
                     Cashier: ['Dashboard', 'Tables'],
@@ -707,6 +772,7 @@
                 const icons = {
                     Dashboard: 'bi-bar-chart-line-fill',
                     Tables: 'bi-grid-1x2-fill',
+                    Menu: 'bi-journal-text',
                     Kitchen: 'bi-egg-fried',
                     Bar: 'bi-cup-straw',
                     Inventory: 'bi-cart-fill',
@@ -773,6 +839,7 @@
                 switch (state.currentPage) {
                     case 'Dashboard': renderDashboardPage(); break;
                     case 'Tables': renderTableLayoutPage(); break;
+                    case 'Menu': renderMenuManagementPage(); break;
                     case 'Kitchen': renderKitchenPage(); break;
                     case 'Bar': renderBarPage(); break;
                     case 'Inventory': renderInventoryPage(); break;
@@ -834,7 +901,7 @@
             function renderDashboardPage() {
                 const completedOrders = state.orders.filter(o => o.status === 'completed');
                 const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
-                const activeKOTs = state.kitchenOrders.filter(o => o.status !== 'served');
+                const activeOrders = state.kitchenOrders.length + state.barOrders.length;
                 const lowStockItems = state.inventory.filter(i => i.stock <= i.lowStockThreshold).length;
 
                 // Top Selling Items
@@ -885,7 +952,7 @@
                             <div class="stat-card p-4 rounded-4 shadow d-flex justify-content-between align-items-center">
                                 <div>
                                     <p class="text-slate-400 mb-1">Active Orders</p>
-                                    <p class="fs-2 fw-bold text-white mb-0">${activeKOTs.length}</p>
+                                    <p class="fs-2 fw-bold text-white mb-0">${activeOrders}</p>
                                 </div>
                                 <i class="bi bi-clock-history" style="color: var(--blue-500);"></i>
                             </div>
@@ -1058,7 +1125,28 @@
             function renderInventoryPage() {
                 const getCategory = (itemId) => Object.entries(state.menu).find(([, items]) => items.some(i => i.id === itemId))?.[0] || 'N/A';
                 
-                const tableRows = state.inventory.map(item => `
+                // Get current filter values before re-rendering
+                const nameFilter = $('#inventory-search-name').val()?.toLowerCase() || '';
+                const categoryFilter = $('#inventory-search-category').val() || '';
+                const statusFilter = $('#inventory-search-status').val() || '';
+                
+                let filteredInventory = [...state.inventory];
+
+                if (nameFilter) {
+                    filteredInventory = filteredInventory.filter(item => item.name.toLowerCase().includes(nameFilter));
+                }
+                if (categoryFilter) {
+                    filteredInventory = filteredInventory.filter(item => getCategory(item.id) === categoryFilter);
+                }
+                if (statusFilter) {
+                    if (statusFilter === 'in-stock') {
+                        filteredInventory = filteredInventory.filter(item => item.stock > item.lowStockThreshold);
+                    } else if (statusFilter === 'low-stock') {
+                        filteredInventory = filteredInventory.filter(item => item.stock <= item.lowStockThreshold);
+                    }
+                }
+    
+                const tableRows = filteredInventory.map(item => `
                     <tr class="align-middle">
                         <td class="p-3 fw-medium text-white">${item.name}</td>
                         <td class="p-3">${getCategory(item.id)}</td>
@@ -1074,15 +1162,37 @@
                             <button class="btn btn-sm btn-outline-success restock-btn" data-item-id="${item.id}">Restock</button>
                         </td>
                     </tr>
-                `).join('');
+                `).join('') || '<tr><td colspan="6" class="text-center p-4">No items match your search.</td></tr>';
 
                 const content = `
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h1 class="text-3xl fw-bold text-white mb-0">Inventory Management</h1>
-                        <button class="btn btn-success d-flex align-items-center" id="add-inventory-item-btn">
-                            <i class="bi bi-plus-circle me-2"></i> Add New Item
-                        </button>
                     </div>
+
+                    <div class="data-card p-3 rounded-4 shadow mb-4">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-5">
+                                <label for="inventory-search-name" class="form-label small">Search by Name</label>
+                                <input type="text" id="inventory-search-name" class="form-control form-control-dark" placeholder="e.g., Pizza">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="inventory-search-category" class="form-label small">Filter by Category</label>
+                                <select id="inventory-search-category" class="form-select form-select-dark">
+                                    <option value="">All Categories</option>
+                                    ${Object.keys(state.menu).map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="inventory-search-status" class="form-label small">Filter by Status</label>
+                                <select id="inventory-search-status" class="form-select form-select-dark">
+                                    <option value="">All Statuses</option>
+                                    <option value="in-stock">In Stock</option>
+                                    <option value="low-stock">Low Stock</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="data-card rounded-4 shadow overflow-hidden">
                         <div class="table-responsive">
                             <table class="table table-dark table-hover mb-0">
@@ -1102,7 +1212,48 @@
                     </div>
                 `;
                  $('#main-content').html(content);
+
+                 $('#inventory-search-name').val(nameFilter);
+                 $('#inventory-search-category').val(categoryFilter);
+                 $('#inventory-search-status').val(statusFilter);
             }
+
+            function renderMenuManagementPage() {
+                let menuHtml = '';
+                for (const category in state.menu) {
+                     menuHtml += `
+                        <div class="menu-category-card rounded-4 mb-4">
+                            <h3 class="fs-5 fw-bold text-white p-3 border-bottom border-secondary">${category}</h3>
+                            <div>
+                                ${state.menu[category].map(item => `
+                                     <div class="menu-item-row p-3 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-white">${item.name}</div>
+                                            <div class="text-slate-400 small">$${item.price.toFixed(2)}</div>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-primary me-2 edit-menu-item-btn" data-item-id="${item.id}"><i class="bi bi-pencil"></i> Edit</button>
+                                            <button class="btn btn-sm btn-outline-danger remove-menu-item-btn" data-item-id="${item.id}"><i class="bi bi-trash"></i> Remove</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                     `;
+                }
+
+                const content = `
+                     <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="text-3xl fw-bold text-white mb-0">Menu Management</h1>
+                        <button class="btn btn-success d-flex align-items-center" id="add-menu-item-btn">
+                            <i class="bi bi-plus-circle me-2"></i> Add New Item
+                        </button>
+                    </div>
+                    ${menuHtml}
+                `;
+                $('#main-content').html(content);
+            }
+
 
             function renderUserManagementPage() {
                 const userCardsHtml = Object.values(state.users).map(user => `
@@ -1586,7 +1737,7 @@
                 const processOrder = (items, orderQueue, name) => {
                     if (items.length > 0) {
                         const newTicket = {
-                            id: Date.now() + Math.random(), // Add random to avoid collision if both created at same time
+                            id: Date.now() + Math.random(),
                             tableId: table ? table.id : null,
                             tableName: table ? table.name : `${state.activeOrder.orderType} #${state.orders.length + 1}`,
                             items: items,
@@ -1600,11 +1751,8 @@
                 };
                 
                 if (table) { // Dining order update logic
-                    const oldKitchenItems = (table.order || []).filter(item => !['Beverages', 'Liqueur'].includes(getCategoryByItemId(item.id)));
-                    const oldBarItems = (table.order || []).filter(item => ['Beverages', 'Liqueur'].includes(getCategoryByItemId(item.id)));
-                    
-                    const kitchenDiff = calculateOrderDifference(oldKitchenItems, kitchenItems);
-                    const barDiff = calculateOrderDifference(oldBarItems, barItems);
+                    const kitchenDiff = calculateOrderDifference(table.order, kitchenItems);
+                    const barDiff = calculateOrderDifference(table.order, barItems);
                     
                     processOrder(kitchenDiff, state.kitchenOrders, "Kitchen");
                     processOrder(barDiff, state.barOrders, "Bar");
@@ -1751,70 +1899,32 @@
                 render();
             });
 
-            // Inventory: Restock
-            $('body').on('click', '.restock-btn', function() {
-                const itemId = $(this).data('item-id');
-                const item = state.inventory.find(i => i.id === itemId);
-                if (item) {
-                    Swal.fire({
-                        title: `Restock ${item.name}`,
-                        input: 'number',
-                        inputLabel: 'Quantity to add',
-                        inputValue: 20,
-                        showCancelButton: true,
-                        inputValidator: (value) => {
-                            if (!value || value <= 0) {
-                                return 'Please enter a valid quantity!'
-                            }
-                        }
-                    }).then(result => {
-                        if (result.isConfirmed) {
-                            item.stock += parseInt(result.value);
-                            showToast(`${item.name} stock updated to ${item.stock}.`);
-                            render();
-                        }
-                    });
-                }
+            // Inventory: Search/Filter
+            $('body').on('input change', '#inventory-search-name, #inventory-search-category, #inventory-search-status', function() {
+                renderInventoryPage();
             });
             
-            // Inventory: Open Add Item Modal
-            $('body').on('click', '#add-inventory-item-btn', function() {
-                $('#inventory-form')[0].reset();
-                const categorySelect = $('#item-category');
-                categorySelect.empty();
-                Object.keys(state.menu).forEach(category => {
-                    categorySelect.append(`<option value="${category}">${category}</option>`);
-                });
-                $('#inventoryModal').modal('show');
+            // Menu: Add/Edit Item
+            $('body').on('click', '#add-menu-item-btn', function() {
+                openMenuItemModal();
             });
 
-            // Inventory: Handle form submission for new item
-            $('#inventory-form').on('submit', function(e) {
-                e.preventDefault();
-                const newItemData = {
-                    id: Date.now(),
-                    name: $('#item-name').val(),
-                    price: parseFloat($('#item-price').val()),
-                    stock: parseInt($('#item-stock').val()),
-                };
-                const newItemInventory = {
-                    ...newItemData,
-                    supplier: $('#item-supplier').val() || 'Gourmet Foods Inc.',
-                    lowStockThreshold: parseInt($('#item-low-stock').val())
-                };
-
-                const category = $('#item-category').val();
-
-                if (state.menu[category]) {
-                    state.menu[category].push(newItemData);
-                    state.inventory.push(newItemInventory);
-                    
-                    $('#inventoryModal').modal('hide');
-                    showToast('New item added successfully!');
-                    render();
-                } else {
-                    showToast('Invalid category selected.', 'danger');
-                }
+            $('body').on('click', '.edit-menu-item-btn', function() {
+                const itemId = $(this).data('item-id');
+                openMenuItemModal(itemId);
+            });
+            
+            // Menu Modal: Toggle Modifiers
+            $('body').on('change', '#menu-item-customizable', function() {
+                $('#modifiers-management-section').toggle(this.checked);
+            });
+            
+            // Menu Modal: Add/Remove Modifier Fields
+            $('body').on('click', '#add-modifier-btn', function() {
+                addModifierInput();
+            });
+             $('body').on('click', '.remove-modifier-btn', function() {
+                $(this).closest('.input-group').remove();
             });
 
             // User Management: Add/Edit User
@@ -1889,7 +1999,6 @@
                     $('#table-name').val(table.name);
                     $('#table-status').val(table.status);
                     
-                    // Prevent changing status if table is in use
                     if(table.status === 'occupied' || table.status === 'billing'){
                         $('#table-status').prop('disabled', true);
                     } else {
@@ -1936,7 +2045,6 @@
                     const table = state.tables.find(t => t.id === tableId);
                     if(table) {
                         table.name = tableName;
-                        // Only change status if it's not locked
                         if(!$('#table-status').is(':disabled')){
                            table.status = tableStatus;
                         }
@@ -1971,3 +2079,4 @@
     </script>
 </body>
 </html>
+
