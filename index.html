@@ -608,6 +608,11 @@
                 },
                 itemToCustomize: null,
                 salesChart: null,
+                report: {
+                    range: '7days', // '7days', 'custom'
+                    year: new Date('2025-10-08T10:53:00').getFullYear(),
+                    month: 'all', // 'all' or 0-11
+                }
             };
 
             // --- MOCK DATA INITIALIZATION ---
@@ -677,6 +682,43 @@
                     'cashier': { id: 'cashier', name: 'Edward Frank', role: 'Cashier' },
                     'bartender': {id: 'bartender', name: 'Fiona Gable', role: 'Bartender'}
                 };
+
+                const generateMockOrders = () => {
+                    const orders = [];
+                    const today = new Date('2025-10-08T10:53:00');
+
+                    const createOrder = (date, total) => ({
+                        id: date.getTime() + Math.random(),
+                        tableId: Math.ceil(Math.random() * 12),
+                        tableName: `Table ${Math.ceil(Math.random() * 12)}`,
+                        items: [{ id: 1, name: "Sample Item", price: total, quantity: 1 }],
+                        total: total,
+                        status: 'completed',
+                        timestamp: date.toISOString(),
+                    });
+
+                    // Current year data
+                    for (let m = 0; m <= today.getMonth(); m++) {
+                         for (let d = 0; d < 15; d++) {
+                             const date = new Date(today.getFullYear(), m, (d * 2) + 1);
+                             if (date <= today) {
+                                orders.push(createOrder(date, Math.random() * 200 + 50));
+                             }
+                         }
+                    }
+
+                    // Previous year data
+                    for (let m = 0; m < 12; m++) {
+                         for (let d = 0; d < 8; d++) {
+                             const date = new Date(today.getFullYear() - 1, m, (d * 3) + 1);
+                             orders.push(createOrder(date, Math.random() * 180 + 40));
+                         }
+                    }
+                    
+                    state.orders = orders;
+                };
+
+                generateMockOrders();
             }
 
             // --- HELPER FUNCTIONS ---
@@ -1355,12 +1397,31 @@
             }
 
             function renderReportsPage() {
+                const uniqueYears = [...new Set(state.orders.map(o => new Date(o.timestamp).getFullYear()))].sort((a,b) => b-a);
+                const yearOptions = uniqueYears.map(y => `<option value="${y}" ${y === state.report.year ? 'selected' : ''}>${y}</option>`).join('');
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const monthOptions = monthNames.map((m, i) => `<option value="${i}" ${i === state.report.month ? 'selected' : ''}>${m}</option>`).join('');
+
                  const content = `
                      <h1 class="text-3xl fw-bold text-white mb-4">Sales Report</h1>
                        <div class="row g-4">
                            <div class="col-12">
                                <div class="data-card p-4 rounded-4 shadow">
-                                   <h2 class="fs-5 fw-bold text-white mb-3">Sales Over Time (Last 7 Days)</h2>
+                                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                        <h2 class="fs-5 fw-bold text-white mb-0">Sales Over Time</h2>
+                                        <div class="d-flex align-items-center gap-2" id="report-filters">
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary report-range-btn ${state.report.range === '7days' ? 'active' : ''}" data-range="7days">Last 7 Days</button>
+                                            </div>
+                                            <select class="form-select form-select-sm form-control-dark" id="report-year-select" style="width: 120px;">
+                                                ${yearOptions}
+                                            </select>
+                                            <select class="form-select form-select-sm form-control-dark" id="report-month-select" style="width: 150px;">
+                                                <option value="all">All Months</option>
+                                                ${monthOptions}
+                                            </select>
+                                        </div>
+                                   </div>
                                    <div style="position: relative; height:60vh">
                                        <canvas id="salesChart"></canvas>
                                    </div>
@@ -1370,14 +1431,90 @@
                 `;
                 $('#main-content').html(content);
                 
-                // Initialize Chart
+                // Set dropdown selections based on state
+                $('#report-year-select').val(state.report.year);
+                $('#report-month-select').val(state.report.month);
+
+                createSalesChart();
+            }
+
+            function createSalesChart() {
+                if (state.salesChart) {
+                    state.salesChart.destroy();
+                }
                 const ctx = document.getElementById('salesChart').getContext('2d');
-                const labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Today'];
+                const today = new Date('2025-10-08T10:53:00');
+                let labels = [];
+                let dataPoints = [];
+
+                const completedOrders = state.orders.filter(o => o.status === 'completed');
+
+                switch(state.report.range) {
+                    case 'custom':
+                        const reportYear = state.report.year;
+                        const reportMonth = state.report.month;
+
+                        if (reportMonth === 'all') { // Yearly view
+                            labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            dataPoints = Array(12).fill(0);
+                            completedOrders.forEach(order => {
+                                const orderDate = new Date(order.timestamp);
+                                if (orderDate.getFullYear() === reportYear) {
+                                    const month = orderDate.getMonth();
+                                    dataPoints[month] += order.total;
+                                }
+                            });
+                        } else { // Monthly view
+                            const monthIndex = parseInt(reportMonth);
+                            const daysInMonth = new Date(reportYear, monthIndex + 1, 0).getDate();
+                            labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+                            dataPoints = Array(daysInMonth).fill(0);
+                            completedOrders.forEach(order => {
+                                const orderDate = new Date(order.timestamp);
+                                if (orderDate.getFullYear() === reportYear && orderDate.getMonth() === monthIndex) {
+                                    const day = orderDate.getDate() - 1;
+                                    dataPoints[day] += order.total;
+                                }
+                            });
+                        }
+                        break;
+                    
+                    case '7days':
+                    default:
+                        labels = Array.from({ length: 7 }, (_, i) => {
+                            const d = new Date(today);
+                            d.setDate(today.getDate() - i);
+                            return d.toLocaleDateString('en-US', { weekday: 'short' });
+                        }).reverse();
+                        dataPoints = Array(7).fill(0);
+                        const sevenDaysAgo = new Date(today);
+                        sevenDaysAgo.setDate(today.getDate() - 6);
+                        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                        completedOrders.forEach(order => {
+                            const orderDate = new Date(order.timestamp);
+                            if (orderDate >= sevenDaysAgo && orderDate <= today) {
+                                const todayStart = new Date(today);
+                                todayStart.setHours(0, 0, 0, 0);
+                                const orderDateStart = new Date(orderDate);
+                                orderDateStart.setHours(0, 0, 0, 0);
+
+                                const diffTime = Math.abs(todayStart - orderDateStart);
+                                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                                const index = 6 - diffDays;
+                                if (index >= 0 && index < 7) {
+                                    dataPoints[index] += order.total;
+                                }
+                            }
+                        });
+                        break;
+                }
+
                 const data = {
                     labels: labels,
                     datasets: [{
                         label: 'Total Sales ($)',
-                        data: [650, 590, 800, 810, 560, 550, state.orders.reduce((sum, o) => sum + o.total, 0)],
+                        data: dataPoints,
                         fill: false,
                         borderColor: 'rgb(16, 185, 129)',
                         tension: 0.1
@@ -2387,12 +2524,28 @@
                 render();
             });
 
-            // --- SEARCH HANDLERS ---
+            // --- SEARCH & REPORT HANDLERS ---
             $('body').on('input', '#menu-search-input', renderFilteredMenuList);
             
             $('body').on('input', '.inventory-search', function() {
                 const category = $(this).data('category');
                 updateInventoryTable(category);
+            });
+
+            $('body').on('click', '.report-range-btn', function() {
+                state.report.range = '7days';
+                // No need to call renderReportsPage, just update the chart and UI elements
+                $('.report-range-btn').addClass('active');
+                $('#report-year-select, #report-month-select').val('all');
+                createSalesChart();
+            });
+            
+            $('body').on('change', '#report-year-select, #report-month-select', function() {
+                state.report.range = 'custom';
+                state.report.year = parseInt($('#report-year-select').val());
+                state.report.month = $('#report-month-select').val();
+                $('.report-range-btn').removeClass('active');
+                createSalesChart();
             });
 
 
