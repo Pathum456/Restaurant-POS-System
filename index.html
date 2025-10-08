@@ -237,6 +237,7 @@
         .icon-lg { font-size: 4rem; }
         .text-emerald { color: var(--emerald-400); }
         .text-slate-400 { color: var(--slate-400); }
+        .text-info { color: #0ea5e9 !important; }
         
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -374,6 +375,7 @@
                                 <option value="Waiter">Waiter</option>
                                 <option value="Kitchen">Kitchen</option>
                                 <option value="Cashier">Cashier</option>
+                                <option value="Bartender">Bartender</option>
                                 <option value="Manager">Manager</option>
                                 <option value="Admin">Admin</option>
                             </select>
@@ -508,6 +510,7 @@
                 tables: [],
                 orders: [], // Completed orders for reporting
                 kitchenOrders: [], // Live kitchen orders
+                barOrders: [], // Live bar orders
                 inventory: [],
                 menu: {},
                 users: {},
@@ -516,7 +519,9 @@
                     orderType: 'Dining', // Dining, Take Away, Delivery
                     deliveryMethod: null, // uber, pickme, self
                     customerName: '',
+                    customerContact: '',
                     customerAddress: '',
+                    referenceNumber: '',
                     items: []
                 },
                 itemToCustomize: null,
@@ -534,21 +539,10 @@
                   'Main Course': [
                     { id: 4, name: "Spaghetti Carbonara", price: 18.00, stock: 30 },
                     { id: 5, name: "Grilled Salmon", price: 24.50, stock: 25 },
-                    { id: 7, name: "Chicken Alfredo", price: 19.50, stock: 35, customizable: true, modifiers: [
-                        { name: 'Add Shrimp', price: 4.00 }, { name: 'Extra Sauce', price: 1.50 }
-                    ]},
-                  ],
-                   Pizzas: [
-                     { id: 6, name: "Margherita Pizza", price: 15.00, stock: 40, customizable: true, modifiers: [
+                    { id: 6, name: "Margherita Pizza", price: 15.00, stock: 40, customizable: true, modifiers: [
                         { name: 'Extra Cheese', price: 1.50 }, { name: 'Olives', price: 1.00 }, { name: 'Mushrooms', price: 1.25 }
                     ]},
-                     { id: 14, name: "Pepperoni Pizza", price: 17.00, stock: 35, customizable: true, modifiers: [
-                        { name: 'Extra Cheese', price: 1.50 }, { name: 'Extra Pepperoni', price: 2.00 }, { name: 'Onions', price: 0.75 }
-                    ]}
-                  ],
-                  'Deviled Dishes': [
-                      { id: 15, name: 'Deviled Chicken', price: 12.00, stock: 30 },
-                      { id: 16, name: 'Deviled Prawns', price: 14.50, stock: 25 }
+                    { id: 7, name: "Chicken Alfredo", price: 19.50, stock: 35 },
                   ],
                   Desserts: [
                     { id: 8, name: "Tiramisu", price: 9.50, stock: 20 },
@@ -559,11 +553,11 @@
                     { id: 11, name: "Cola", price: 3.50, stock: 200 },
                     { id: 12, name: "Orange Juice", price: 4.00, stock: 150 },
                     { id: 13, name: "Espresso", price: 3.00, stock: 300 },
-                    { id: 17, name: "Mango Juice", price: 4.50, stock: 100}
                   ],
-                  Liqueurs: [
-                      { id: 18, name: 'Glass of Red Wine', price: 7.00, stock: 50 },
-                      { id: 19, name: 'Local Beer', price: 5.00, stock: 100 }
+                   Liqueur: [
+                    { id: 14, name: "Red Wine (Glass)", price: 8.00, stock: 50 },
+                    { id: 15, name: "Local Beer", price: 6.50, stock: 100 },
+                    { id: 16, name: "Whiskey (Single)", price: 9.00, stock: 40 },
                   ]
                 };
 
@@ -586,6 +580,7 @@
                   'waiter': { id: 'waiter', name: 'Charles Davis', role: 'Waiter' },
                   'kitchen': { id: 'kitchen', name: 'Diana Prince', role: 'Kitchen' },
                   'cashier': { id: 'cashier', name: 'Edward Frank', role: 'Cashier' },
+                  'bartender': {id: 'bartender', name: 'Fiona Gable', role: 'Bartender'}
                 };
             }
 
@@ -644,9 +639,17 @@
                 });
             }
             
-            function calculateOrderDifference(oldOrder, newOrder) {
+             function getCategoryByItemId(itemId) {
+                for (const category in state.menu) {
+                    if (state.menu[category].some(item => item.id === itemId)) {
+                        return category;
+                    }
+                }
+                return null;
+            }
+
+             function calculateOrderDifference(oldOrder, newOrder) {
                 const diff = [];
-                // Use customId for comparison to handle customized items uniquely
                 const oldOrderMap = new Map((oldOrder || []).map(item => [item.customId || item.id, item.quantity]));
 
                 for (const newItem of newOrder) {
@@ -660,6 +663,7 @@
                 }
                 return diff;
             }
+
 
 
             // --- RENDER FUNCTIONS ---
@@ -693,16 +697,18 @@
 
             function renderHeader() {
                 const navLinks = {
-                    Admin: ['Dashboard', 'Tables', 'Kitchen', 'Inventory', 'Reports', 'Users'],
-                    Manager: ['Dashboard', 'Tables', 'Kitchen', 'Inventory', 'Reports'],
+                    Admin: ['Dashboard', 'Tables', 'Kitchen', 'Bar', 'Inventory', 'Reports', 'Users'],
+                    Manager: ['Dashboard', 'Tables', 'Kitchen', 'Bar', 'Inventory', 'Reports'],
                     Waiter: ['Tables'],
                     Kitchen: ['Kitchen'],
                     Cashier: ['Dashboard', 'Tables'],
+                    Bartender: ['Bar'],
                 };
                 const icons = {
                     Dashboard: 'bi-bar-chart-line-fill',
                     Tables: 'bi-grid-1x2-fill',
                     Kitchen: 'bi-egg-fried',
+                    Bar: 'bi-cup-straw',
                     Inventory: 'bi-cart-fill',
                     Reports: 'bi-file-earmark-bar-graph-fill',
                     Users: 'bi-people-fill',
@@ -768,6 +774,7 @@
                     case 'Dashboard': renderDashboardPage(); break;
                     case 'Tables': renderTableLayoutPage(); break;
                     case 'Kitchen': renderKitchenPage(); break;
+                    case 'Bar': renderBarPage(); break;
                     case 'Inventory': renderInventoryPage(); break;
                     case 'Reports': renderReportsPage(); break;
                     case 'Users': renderUserManagementPage(); break;
@@ -951,6 +958,19 @@
                                                 ` : ''}
                                             </li>
                                         `).join('');
+                                        
+                                        let orderDetailsHtml = '';
+                                        if (order.orderType === 'Take Away' || order.orderType === 'Delivery') {
+                                            orderDetailsHtml += `<div class="small text-light mb-1"><i class="bi bi-person-fill"></i> ${order.customerName || 'N/A'}`;
+                                            if(order.customerContact) {
+                                                 orderDetailsHtml += ` | <i class="bi bi-telephone-fill"></i> ${order.customerContact}`;
+                                            }
+                                            orderDetailsHtml += `</div>`;
+                                        }
+
+                                        if (order.orderType === 'Delivery' && order.referenceNumber) {
+                                            orderDetailsHtml += `<div class="small text-info mb-2"><i class="bi bi-hash"></i> ${order.referenceNumber}</div>`;
+                                        }
 
                                         return `
                                             <div class="kot-card p-3 rounded-3 shadow-sm mb-3">
@@ -958,6 +978,7 @@
                                                     <h3 class="fw-bold text-white fs-6 mb-0">${order.tableName}</h3>
                                                     <small class="text-slate-400">${new Date(order.timestamp).toLocaleTimeString()}</small>
                                                 </div>
+                                                ${orderDetailsHtml}
                                                 <ul class="list-unstyled mb-3">${itemsHtml}</ul>
                                                 <div class="d-flex justify-content-end gap-2">
                                                     ${status === 'Preparing' ? `<button class="btn btn-sm btn-outline-warning kot-action-btn" data-order-id="${order.id}" data-action="move-to-new">Back</button>` : ''}
@@ -975,6 +996,60 @@
 
                 const content = `
                     <h1 class="text-3xl fw-bold text-white mb-4">Kitchen Orders (KOT)</h1>
+                    <div class="row" style="min-height: 75vh;">${columnsHtml}</div>
+                `;
+                 $('#main-content').html(content);
+            }
+
+            function renderBarPage() {
+                const columns = {
+                    New: state.barOrders.filter(o => o.status === 'new'),
+                    Preparing: state.barOrders.filter(o => o.status === 'preparing'),
+                    Ready: state.barOrders.filter(o => o.status === 'ready'),
+                };
+
+                let columnsHtml = '';
+                for (const [status, orders] of Object.entries(columns)) {
+                    columnsHtml += `
+                        <div class="col-md-4">
+                            <div class="kot-column rounded-4 d-flex flex-column h-100">
+                                <h2 class="fs-5 fw-bold text-white p-3 border-bottom border-secondary">${status} (${orders.length})</h2>
+                                <div class="p-3 space-y-4 overflow-auto">
+                                    ${orders.map(order => {
+                                        let actionButton = '';
+                                        if (status === 'New') actionButton = `<button class="btn btn-sm btn-primary bot-action-btn" data-order-id="${order.id}" data-action="preparing">Start</button>`;
+                                        if (status === 'Preparing') actionButton = `<button class="btn btn-sm btn-success bot-action-btn" data-order-id="${order.id}" data-action="ready">Ready</button>`;
+                                        if (status === 'Ready') actionButton = `<button class="btn btn-sm btn-secondary bot-action-btn" data-order-id="${order.id}" data-action="served">Serve</button>`;
+                                        
+                                        const itemsHtml = order.items.map(item => `
+                                            <li>
+                                                <span class="fw-semibold text-emerald">${item.quantity}x</span> ${item.name}
+                                            </li>
+                                        `).join('');
+
+                                        return `
+                                            <div class="kot-card p-3 rounded-3 shadow-sm mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h3 class="fw-bold text-white fs-6 mb-0">${order.tableName}</h3>
+                                                    <small class="text-slate-400">${new Date(order.timestamp).toLocaleTimeString()}</small>
+                                                </div>
+                                                <ul class="list-unstyled mb-3">${itemsHtml}</ul>
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    ${status === 'Preparing' ? `<button class="btn btn-sm btn-outline-warning bot-action-btn" data-order-id="${order.id}" data-action="move-to-new">Back</button>` : ''}
+                                                    ${status === 'Ready' ? `<button class="btn btn-sm btn-outline-warning bot-action-btn" data-order-id="${order.id}" data-action="move-to-preparing">Back</button>` : ''}
+                                                    ${actionButton}
+                                                </div>
+                                            </div>
+                                        `
+                                    }).join('') || `<p class="text-slate-400 text-center p-5">No orders</p>`}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const content = `
+                    <h1 class="text-3xl fw-bold text-white mb-4">Bar Orders (BOT)</h1>
                     <div class="row" style="min-height: 75vh;">${columnsHtml}</div>
                 `;
                  $('#main-content').html(content);
@@ -1120,7 +1195,9 @@
                     orderType: orderType,
                     deliveryMethod: null,
                     customerName: '',
+                    customerContact: '',
                     customerAddress: '',
+                    referenceNumber: '',
                     items: tableId ? JSON.parse(JSON.stringify(state.tables.find(t=>t.id === tableId).order)) : []
                 };
 
@@ -1138,6 +1215,9 @@
                  const menuContainer = $('#menu-container');
                 menuContainer.empty();
                 $.each(state.menu, (category, items) => {
+                    if (state.activeOrder.orderType !== 'Dining' && (category === 'Liqueur' || category === 'Beverages')) {
+                        return true; // continue in jQuery.each
+                    }
                     const itemsHtml = items.map(item => `
                         <div class="col">
                             <button class="btn menu-item-btn w-100 text-start p-3 rounded-3 menu-item" data-item-id="${item.id}" ${item.stock <= 0 ? 'disabled' : ''}>
@@ -1178,14 +1258,22 @@
                 if (state.activeOrder.orderType === 'Take Away' || state.activeOrder.orderType === 'Delivery') {
                     detailsHtml += `
                          <div class="row g-2">
-                            <div class="col-12">
+                            <div class="col-md-6">
                                 <label class="form-label small">Customer Name</label>
                                 <input type="text" id="customer-name-input" class="form-control form-control-dark" value="${state.activeOrder.customerName}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Contact Number</label>
+                                <input type="tel" id="customer-contact-input" class="form-control form-control-dark" value="${state.activeOrder.customerContact || ''}">
                             </div>
                             ${state.activeOrder.orderType === 'Delivery' ? `
                             <div class="col-12">
                                 <label class="form-label small">Delivery Address</label>
                                 <input type="text" id="customer-address-input" class="form-control form-control-dark" value="${state.activeOrder.customerAddress}">
+                            </div>
+                             <div class="col-12">
+                                <label class="form-label small">Reference Number</label>
+                                <input type="text" id="reference-number-input" class="form-control form-control-dark" placeholder="e.g., Uber Eats #12345" value="${state.activeOrder.referenceNumber || ''}">
                             </div>` : ''}
                          </div>
                     `;
@@ -1319,6 +1407,9 @@
                     case 'Kitchen':
                         state.currentPage = 'Kitchen';
                         break;
+                    case 'Bartender':
+                        state.currentPage = 'Bar';
+                        break;
                     default:
                         state.currentPage = 'Tables';
                 }
@@ -1350,9 +1441,12 @@
                 const userRole = state.currentUser.role;
 
                 if (table.status === 'billing') {
-                    if (userRole === 'Cashier' || userRole === 'Admin' || userRole === 'Manager') {
+                     if (userRole === 'Cashier' || userRole === 'Admin' || userRole === 'Manager') {
                         openBillingModal(tableId);
-                    } else {
+                    } else if (userRole === 'Waiter') {
+                        openOrderModal(tableId, 'Dining');
+                    }
+                     else {
                         Swal.fire({
                             title: 'Billing in Progress',
                             text: `The bill for ${table.name} is ready. The cashier will process the payment.`,
@@ -1416,6 +1510,7 @@
             $('#orderModal').on('change', '#order-type-select', function() {
                 state.activeOrder.orderType = $(this).val();
                 renderCustomerDetails();
+                renderMenu(); // Re-render menu to show/hide categories
             });
 
 
@@ -1473,55 +1568,57 @@
             $('#place-order-btn').on('click', function() {
                 const tableId = state.activeModalTableId;
                 const table = tableId ? state.tables.find(t => t.id === tableId) : null;
-                const newCompleteOrder = state.activeOrder.items;
+                
+                // Capture details from form into activeOrder object
+                Object.assign(state.activeOrder, {
+                    customerName: $('#customer-name-input').val() || '',
+                    customerContact: $('#customer-contact-input').val() || '',
+                    customerAddress: $('#customer-address-input').val() || '',
+                    deliveryMethod: $('#delivery-method-select').val() || null,
+                    referenceNumber: $('#reference-number-input').val() || ''
+                });
 
-                // Capture customer details from form
-                state.activeOrder.customerName = $('#customer-name-input').val() || '';
-                state.activeOrder.customerAddress = $('#customer-address-input').val() || '';
-                state.activeOrder.deliveryMethod = $('#delivery-method-select').val() || null;
+                const allItems = state.activeOrder.items;
 
+                const kitchenItems = allItems.filter(item => !['Beverages', 'Liqueur'].includes(getCategoryByItemId(item.id)));
+                const barItems = allItems.filter(item => ['Beverages', 'Liqueur'].includes(getCategoryByItemId(item.id)));
 
-                // Logic for Dining (tied to a table)
-                if (table) {
-                    const existingNewKot = state.kitchenOrders.find(ko => ko.tableId === tableId && ko.status === 'new');
-                    if (existingNewKot) {
-                        existingNewKot.items = [...newCompleteOrder];
-                        showToast(`Order for ${table.name} has been updated.`);
-                    } else {
-                        const itemsForNewKot = calculateOrderDifference(table.order, newCompleteOrder);
-                        if (itemsForNewKot.length > 0) {
-                             state.kitchenOrders.unshift({
-                                id: Date.now(),
-                                tableId: table.id,
-                                tableName: table.name,
-                                items: itemsForNewKot,
-                                status: 'new',
-                                timestamp: new Date().toISOString(),
-                                orderType: state.activeOrder.orderType,
-                            });
-                            showToast(`New items for ${table.name} sent to kitchen.`);
-                        } else {
-                           showToast(`No new items to send for ${table.name}.`);
-                        }
+                const processOrder = (items, orderQueue, name) => {
+                    if (items.length > 0) {
+                        const newTicket = {
+                            id: Date.now() + Math.random(), // Add random to avoid collision if both created at same time
+                            tableId: table ? table.id : null,
+                            tableName: table ? table.name : `${state.activeOrder.orderType} #${state.orders.length + 1}`,
+                            items: items,
+                            status: 'new',
+                            timestamp: new Date().toISOString(),
+                            ...state.activeOrder
+                        };
+                        orderQueue.unshift(newTicket);
+                        showToast(`New items sent to ${name}.`);
                     }
-                    table.order = [...newCompleteOrder];
-                    table.status = table.order.length > 0 ? 'occupied' : 'available';
-                    playSound('new-order');
-                } else { 
-                    // Logic for Take Away / Delivery (not tied to a table)
-                     const tempTableName = `${state.activeOrder.orderType} #${state.orders.length + 1}`;
-                     state.kitchenOrders.unshift({
-                        id: Date.now(),
-                        tableId: null,
-                        tableName: tempTableName,
-                        items: [...newCompleteOrder],
-                        status: 'new',
-                        timestamp: new Date().toISOString(),
-                        orderType: state.activeOrder.orderType,
-                        deliveryMethod: state.activeOrder.deliveryMethod,
-                        customerName: state.activeOrder.customerName,
-                    });
-                    showToast(`New ${state.activeOrder.orderType} order created.`);
+                };
+                
+                if (table) { // Dining order update logic
+                    const oldKitchenItems = (table.order || []).filter(item => !['Beverages', 'Liqueur'].includes(getCategoryByItemId(item.id)));
+                    const oldBarItems = (table.order || []).filter(item => ['Beverages', 'Liqueur'].includes(getCategoryByItemId(item.id)));
+                    
+                    const kitchenDiff = calculateOrderDifference(oldKitchenItems, kitchenItems);
+                    const barDiff = calculateOrderDifference(oldBarItems, barItems);
+                    
+                    processOrder(kitchenDiff, state.kitchenOrders, "Kitchen");
+                    processOrder(barDiff, state.barOrders, "Bar");
+
+                    table.order = [...allItems];
+                    if (allItems.length > 0) {
+                         table.status = 'occupied';
+                    }
+                } else { // New Take Away or Delivery Order
+                    processOrder(kitchenItems, state.kitchenOrders, "Kitchen");
+                    processOrder(barItems, state.barOrders, "Bar");
+                }
+
+                if (kitchenItems.length > 0 || barItems.length > 0) {
                     playSound('new-order');
                 }
                 
@@ -1591,30 +1688,35 @@
             });
 
             // Kitchen: Update Order Status
-            $('body').on('click', '.kot-action-btn', function() {
+            $('body').on('click', '.kot-action-btn, .bot-action-btn', function() {
                 const orderId = $(this).data('order-id');
                 const action = $(this).data('action');
-                const order = state.kitchenOrders.find(o => o.id === orderId);
+                const isKitchen = $(this).hasClass('kot-action-btn');
+                const orderQueue = isKitchen ? state.kitchenOrders : state.barOrders;
+                const order = orderQueue.find(o => o.id === orderId);
 
                 if (!order) return;
 
                 switch (action) {
                     case 'served':
-                        state.kitchenOrders = state.kitchenOrders.filter(o => o.id !== orderId);
+                        const index = orderQueue.findIndex(o => o.id === orderId);
+                        if(index > -1) orderQueue.splice(index, 1);
+                        
                         const table = state.tables.find(t => t.id === order.tableId);
                         if (table) {
-                            const hasPendingKots = state.kitchenOrders.some(ko => ko.tableId === table.id);
-                            if (!hasPendingKots) {
+                            const hasPendingKitchen = state.kitchenOrders.some(ko => ko.tableId === table.id);
+                            const hasPendingBar = state.barOrders.some(bo => bo.tableId === table.id);
+                            if (!hasPendingKitchen && !hasPendingBar) {
                                 table.status = 'billing';
                                 playSound('billing-ready');
                             }
                         }
-                        showToast(`${order.tableName}'s order has been served.`);
+                        showToast(`${order.tableName}'s ${isKitchen ? 'food' : 'drinks'} have been served.`);
                         break;
                     case 'ready':
                         Swal.fire({
-                            title: 'Is the order ready?',
-                            text: `Confirm that all items for ${order.tableName} are prepared.`,
+                            title: `Is the ${isKitchen ? 'food' : 'drink'} order ready?`,
+                            text: `Confirm items for ${order.tableName} are ready.`,
                             icon: 'question',
                             showCancelButton: true,
                             confirmButtonText: "Yes, it's ready!",
@@ -1627,8 +1729,7 @@
                                     toast: true,
                                     position: 'top-end',
                                     icon: 'info',
-                                    title: `Order for ${order.tableName} is ready!`,
-                                    html: 'Please pick it up from the kitchen.',
+                                    title: `${isKitchen ? 'Food' : 'Drinks'} for ${order.tableName} is ready!`,
                                     showConfirmButton: false,
                                     timer: 5000,
                                     timerProgressBar: true
@@ -1870,4 +1971,3 @@
     </script>
 </body>
 </html>
-
