@@ -625,10 +625,20 @@
                 itemToCustomize: null,
                 salesChart: null,
                 report: {
-                    activeReport: 'sales', // 'sales', 'inventory'
+                    activeReport: 'sales', // 'sales', 'inventory', 'topItems', 'comparison'
                     range: '7days', // '7days', 'custom'
                     year: new Date('2025-10-08T10:53:00').getFullYear(),
-                    month: 'all', // 'all' or 0-11
+                    month: 'all', // 'all' or 0-11,
+                    comparison: {
+                        period1: {
+                            year: new Date('2025-10-08T10:53:00').getFullYear() - 1,
+                            month: new Date('2025-10-08T10:53:00').getMonth(),
+                        },
+                        period2: {
+                            year: new Date('2025-10-08T10:53:00').getFullYear(),
+                            month: new Date('2025-10-08T10:53:00').getMonth(),
+                        }
+                    }
                 }
             };
 
@@ -703,23 +713,36 @@
                 const generateMockOrders = () => {
                     const orders = [];
                     const today = new Date('2025-10-08T10:53:00');
+                    const allMenuItems = Object.values(state.menu).flat();
 
-                    const createOrder = (date, total) => ({
-                        id: date.getTime() + Math.random(),
-                        tableId: Math.ceil(Math.random() * 12),
-                        tableName: `Table ${Math.ceil(Math.random() * 12)}`,
-                        items: [{ id: 1, name: "Sample Item", price: total, quantity: 1 }],
-                        total: total,
-                        status: 'completed',
-                        timestamp: date.toISOString(),
-                    });
+                    const createOrder = (date) => {
+                        const itemCount = Math.floor(Math.random() * 5) + 1;
+                        const items = [];
+                        let total = 0;
+                        for (let i = 0; i < itemCount; i++) {
+                            const randomItem = allMenuItems[Math.floor(Math.random() * allMenuItems.length)];
+                            const quantity = Math.floor(Math.random() * 3) + 1;
+                            items.push({ ...randomItem, quantity: quantity });
+                            total += randomItem.price * quantity;
+                        }
+                        
+                        return {
+                            id: date.getTime() + Math.random(),
+                            tableId: Math.ceil(Math.random() * 12),
+                            tableName: `Table ${Math.ceil(Math.random() * 12)}`,
+                            items: items,
+                            total: total,
+                            status: 'completed',
+                            timestamp: date.toISOString(),
+                        };
+                    };
 
                     // Current year data
                     for (let m = 0; m <= today.getMonth(); m++) {
                          for (let d = 0; d < 15; d++) {
                              const date = new Date(today.getFullYear(), m, (d * 2) + 1);
                              if (date <= today) {
-                                orders.push(createOrder(date, Math.random() * 200 + 50));
+                                orders.push(createOrder(date));
                              }
                          }
                     }
@@ -728,7 +751,7 @@
                     for (let m = 0; m < 12; m++) {
                          for (let d = 0; d < 8; d++) {
                              const date = new Date(today.getFullYear() - 1, m, (d * 3) + 1);
-                             orders.push(createOrder(date, Math.random() * 180 + 40));
+                             orders.push(createOrder(date));
                          }
                     }
                     
@@ -936,7 +959,6 @@
                 $('#main-content').html(''); // Clear previous content
                 if (state.salesChart) {
                     state.salesChart.destroy();
-                    state.salesChart = null;
                 }
 
                 switch (state.currentPage) {
@@ -1308,23 +1330,30 @@
                 if (!items || items.length === 0) {
                     return '<tr><td colspan="6" class="text-center p-4">No ingredients found.</td></tr>';
                 }
+                const actionButtons = (item) => {
+                    const itemCategory = Object.keys(state.inventory).find(key => state.inventory[key].some(i => i.id === item.id));
+                    if (category === 'report') return ''; // No actions in report view
+                    return `
+                        <button class="btn btn-sm btn-outline-info restock-btn" data-item-id="${item.id}" data-category="${itemCategory}">Restock</button>
+                        <button class="btn btn-sm btn-outline-primary ms-2 edit-inventory-item-btn" data-item-id="${item.id}" data-category="${itemCategory}">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger ms-2 delete-inventory-item-btn" data-item-id="${item.id}" data-category="${itemCategory}">Delete</button>
+                    `;
+                }
+
                 return items.map(item => `
                     <tr class="align-middle">
                         <td class="p-3 fw-medium text-white">${item.name}</td>
                         <td class="p-3">${item.unit}</td>
                         <td class="p-3 text-end font-monospace">${item.stock}</td>
                         <td class="p-3">
-                            ${item.stock > item.lowStockThreshold 
+                            ${item.stock === 0 ? `<span class="badge bg-danger text-danger-emphasis rounded-pill">Out of Stock</span>` :
+                             (item.stock > item.lowStockThreshold 
                                 ? `<span class="badge bg-success-subtle text-success-emphasis rounded-pill">In Stock</span>`
-                                : `<span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Low Stock</span>`
+                                : `<span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">Low Stock</span>`)
                             }
                         </td>
                         <td class="p-3">${item.supplier || 'N/A'}</td>
-                        <td class="p-3 text-end">
-                            <button class="btn btn-sm btn-outline-info restock-btn" data-item-id="${item.id}" data-category="${category}">Restock</button>
-                            <button class="btn btn-sm btn-outline-primary ms-2 edit-inventory-item-btn" data-item-id="${item.id}" data-category="${category}">Edit</button>
-                            <button class="btn btn-sm btn-outline-danger ms-2 delete-inventory-item-btn" data-item-id="${item.id}" data-category="${category}">Delete</button>
-                        </td>
+                        <td class="p-3 text-end">${actionButtons(item)}</td>
                     </tr>
                 `).join('');
             }
@@ -1433,24 +1462,31 @@
                     <h1 class="text-3xl fw-bold text-white mb-4">Reports</h1>
                     <ul class="nav nav-tabs" id="reportTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link report-tab-btn ${state.report.activeReport === 'sales' ? 'active' : ''}" id="sales-report-tab" data-bs-toggle="tab" data-bs-target="#sales-report-pane" type="button" role="tab" data-report="sales">Sales Report</button>
+                            <button class="nav-link report-tab-btn ${state.report.activeReport === 'sales' ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#sales-report-pane" type="button" role="tab" data-report="sales">Sales</button>
+                        </li>
+                         <li class="nav-item" role="presentation">
+                            <button class="nav-link report-tab-btn ${state.report.activeReport === 'comparison' ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#comparison-report-pane" type="button" role="tab" data-report="comparison">Sales Comparison</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link report-tab-btn ${state.report.activeReport === 'inventory' ? 'active' : ''}" id="inventory-report-tab" data-bs-toggle="tab" data-bs-target="#inventory-report-pane" type="button" role="tab" data-report="inventory">Inventory Report</button>
+                            <button class="nav-link report-tab-btn ${state.report.activeReport === 'inventory' ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#inventory-report-pane" type="button" role="tab" data-report="inventory">Inventory</button>
+                        </li>
+                         <li class="nav-item" role="presentation">
+                            <button class="nav-link report-tab-btn ${state.report.activeReport === 'topItems' ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#top-items-report-pane" type="button" role="tab" data-report="topItems">Top Selling</button>
                         </li>
                     </ul>
                     <div class="tab-content p-4" id="reportTabContent">
                         <div class="tab-pane fade ${state.report.activeReport === 'sales' ? 'show active' : ''}" id="sales-report-pane" role="tabpanel"></div>
+                        <div class="tab-pane fade ${state.report.activeReport === 'comparison' ? 'show active' : ''}" id="comparison-report-pane" role="tabpanel"></div>
                         <div class="tab-pane fade ${state.report.activeReport === 'inventory' ? 'show active' : ''}" id="inventory-report-pane" role="tabpanel"></div>
+                        <div class="tab-pane fade ${state.report.activeReport === 'topItems' ? 'show active' : ''}" id="top-items-report-pane" role="tabpanel"></div>
                     </div>
                 `;
                 $('#main-content').html(content);
                 
-                if (state.report.activeReport === 'sales') {
-                    renderSalesReport();
-                } else {
-                    renderInventoryReport();
-                }
+                if (state.report.activeReport === 'sales') renderSalesReport();
+                else if (state.report.activeReport === 'inventory') renderInventoryReport();
+                else if (state.report.activeReport === 'topItems') renderTopItemsReport();
+                else if (state.report.activeReport === 'comparison') renderSalesComparisonReport();
             }
 
             function renderSalesReport() {
@@ -1588,6 +1624,139 @@
                 $('#inventory-report-status-filter').val(statusFilter);
             }
 
+            function renderTopItemsReport() {
+                 const uniqueYears = [...new Set(state.orders.map(o => new Date(o.timestamp).getFullYear()))].sort((a,b) => b-a);
+                const yearOptions = uniqueYears.map(y => `<option value="${y}" ${y === state.report.year ? 'selected' : ''}>${y}</option>`).join('');
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const monthOptions = monthNames.map((m, i) => `<option value="${i}" ${i == state.report.month ? 'selected' : ''}>${m}</option>`).join('');
+
+                let filteredOrders = state.orders.filter(o => o.status === 'completed');
+                
+                switch(state.report.range) {
+                    case 'custom':
+                        const reportYear = state.report.year;
+                        const reportMonth = state.report.month;
+                        filteredOrders = filteredOrders.filter(order => {
+                            const orderDate = new Date(order.timestamp);
+                            if (reportMonth === 'all') return orderDate.getFullYear() === reportYear;
+                            return orderDate.getFullYear() === reportYear && orderDate.getMonth() === parseInt(reportMonth);
+                        });
+                        break;
+                    case '7days':
+                    default:
+                        const today = new Date('2025-10-08T10:53:00');
+                        const sevenDaysAgo = new Date(today);
+                        sevenDaysAgo.setDate(today.getDate() - 6);
+                        sevenDaysAgo.setHours(0, 0, 0, 0);
+                        filteredOrders = filteredOrders.filter(order => {
+                            const orderDate = new Date(order.timestamp);
+                            return orderDate >= sevenDaysAgo && orderDate <= today;
+                        });
+                        break;
+                }
+
+                 const itemCounts = filteredOrders
+                    .flatMap(o => o.items)
+                    .reduce((acc, item) => {
+                        if (!acc[item.name]) {
+                            acc[item.name] = { name: item.name, quantity: 0, total: 0 };
+                        }
+                        acc[item.name].quantity += item.quantity;
+                        acc[item.name].total += item.price * item.quantity;
+                        return acc;
+                    }, {});
+
+                const topItems = Object.values(itemCounts)
+                    .sort((a, b) => b.quantity - a.quantity);
+
+                const tableRows = topItems.map(item => `
+                    <tr>
+                        <td class="p-3 fw-medium text-white">${item.name}</td>
+                        <td class="p-3 text-end">${item.quantity}</td>
+                        <td class="p-3 text-end">$${item.total.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+                const topItemsContent = `
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h2 class="fs-5 fw-bold text-white mb-0">Top Selling Items</h2>
+                        <div class="d-flex align-items-center gap-2" id="report-filters">
+                             <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary report-range-btn ${state.report.range === '7days' ? 'active' : ''}" data-range="7days">Last 7 Days</button>
+                            </div>
+                            <select class="form-select form-select-sm form-control-dark" id="report-year-select" style="width: 120px;">${yearOptions}</select>
+                            <select class="form-select form-select-sm form-control-dark" id="report-month-select" style="width: 150px;">
+                                <option value="all">All Months</option>
+                                ${monthOptions}
+                            </select>
+                            <button class="btn btn-sm btn-outline-success ms-2" id="download-top-items-report"><i class="bi bi-download me-2"></i>Download Excel</button>
+                        </div>
+                    </div>
+                     <div class="data-card rounded-4 shadow overflow-hidden">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover mb-0">
+                                <thead class="text-uppercase small">
+                                    <tr>
+                                        <th class="p-3">Item Name</th>
+                                        <th class="p-3 text-end">Quantity Sold</th>
+                                        <th class="p-3 text-end">Total Revenue</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tableRows || `<tr><td colspan="3" class="text-center p-4">No sales data for this period.</td></tr>`}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                 $('#top-items-report-pane').html(topItemsContent);
+                 $('#report-year-select').val(state.report.year);
+                 $('#report-month-select').val(state.report.month);
+            }
+
+            function renderSalesComparisonReport() {
+                const uniqueYears = [...new Set(state.orders.map(o => new Date(o.timestamp).getFullYear()))].sort((a,b) => b-a);
+                const yearOptions = uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const monthOptions = monthNames.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+
+                const comparisonContent = `
+                    <h2 class="fs-5 fw-bold text-white mb-3">Compare Monthly Sales</h2>
+                    <div class="data-card p-3 rounded-4 shadow mb-4">
+                        <div class="row g-3 align-items-end">
+                            <!-- Period 1 -->
+                            <div class="col-md-5">
+                                <label class="form-label small">Period 1</label>
+                                <div class="input-group">
+                                    <select class="form-select form-select-dark" id="compare-month1">${monthOptions}</select>
+                                    <select class="form-select form-select-dark" id="compare-year1">${yearOptions}</select>
+                                </div>
+                            </div>
+                            <!-- Period 2 -->
+                            <div class="col-md-5">
+                                <label class="form-label small">Period 2</label>
+                                <div class="input-group">
+                                    <select class="form-select form-select-dark" id="compare-month2">${monthOptions}</select>
+                                    <select class="form-select form-select-dark" id="compare-year2">${yearOptions}</select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" id="compare-sales-btn">Compare</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="position: relative; height:60vh">
+                       <canvas id="salesComparisonChart"></canvas>
+                   </div>
+                `;
+                 $('#comparison-report-pane').html(comparisonContent);
+                 
+                 // Set initial values
+                 $('#compare-year1').val(state.report.comparison.period1.year);
+                 $('#compare-month1').val(state.report.comparison.period1.month);
+                 $('#compare-year2').val(state.report.comparison.period2.year);
+                 $('#compare-month2').val(state.report.comparison.period2.month);
+
+                 createSalesComparisonChart();
+            }
 
             function createSalesChart() {
                 if (state.salesChart) {
@@ -1688,6 +1857,75 @@
                                     }
                                 }
                             }
+                        }
+                    }
+                });
+            }
+
+            function createSalesComparisonChart() {
+                if (state.salesChart) {
+                    state.salesChart.destroy();
+                }
+                const ctx = document.getElementById('salesComparisonChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const p1_year = parseInt($('#compare-year1').val());
+                const p1_month = parseInt($('#compare-month1').val());
+                const p2_year = parseInt($('#compare-year2').val());
+                const p2_month = parseInt($('#compare-month2').val());
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+                state.report.comparison.period1 = { year: p1_year, month: p1_month };
+                state.report.comparison.period2 = { year: p2_year, month: p2_month };
+
+                if (p1_year === p2_year && p1_month === p2_month) {
+                    showToast("Please select two different periods to compare.", 'danger');
+                    return;
+                }
+
+                const createDataSet = (year, month) => {
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const dataPoints = Array(daysInMonth).fill(0);
+                    state.orders.forEach(order => {
+                        const orderDate = new Date(order.timestamp);
+                        if (orderDate.getFullYear() === year && orderDate.getMonth() === month) {
+                            dataPoints[orderDate.getDate() - 1] += order.total;
+                        }
+                    });
+                    return dataPoints;
+                }
+
+                const data1 = createDataSet(p1_year, p1_month);
+                const data2 = createDataSet(p2_year, p2_month);
+                
+                const labels = Array.from({ length: 31 }, (_, i) => i + 1);
+
+                state.salesChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: `${monthNames[p1_month]} ${p1_year}`,
+                                data: data1,
+                                borderColor: 'rgb(52, 211, 153)', // emerald
+                                backgroundColor: 'rgba(52, 211, 153, 0.5)',
+                                tension: 0.1
+                            },
+                            {
+                                label: `${monthNames[p2_month]} ${p2_year}`,
+                                data: data2,
+                                borderColor: 'rgb(59, 130, 246)', // blue
+                                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                         responsive: true, 
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { callback: value => '$' + value } }
                         }
                     }
                 });
@@ -2691,7 +2929,11 @@
 
             $('body').on('click', '.report-range-btn', function() {
                 state.report.range = '7days';
-                renderReportsPage();
+                if(state.report.activeReport === 'sales') {
+                    renderSalesReport();
+                } else if (state.report.activeReport === 'topItems') {
+                    renderTopItemsReport();
+                }
             });
             
             $('body').on('change', '#report-year-select, #report-month-select', function() {
@@ -2699,17 +2941,24 @@
                 state.report.year = parseInt($('#report-year-select').val());
                 state.report.month = $('#report-month-select').val();
                 $('.report-range-btn').removeClass('active');
-                createSalesChart();
-            });
-
-            $('body').on('click', '.report-tab-btn', function() {
-                state.report.activeReport = $(this).data('report');
-                if (state.report.activeReport === 'sales') {
-                    renderSalesReport();
-                } else {
-                    renderInventoryReport();
+                
+                if(state.report.activeReport === 'sales') {
+                    createSalesChart();
+                } else if (state.report.activeReport === 'topItems') {
+                    renderTopItemsReport();
                 }
             });
+
+            $('body').on('shown.bs.tab', '#reportTab .nav-link', function(e) {
+                const reportType = $(e.target).data('report');
+                state.report.activeReport = reportType;
+                 if (reportType === 'sales') renderSalesReport();
+                else if (reportType === 'inventory') renderInventoryReport();
+                else if (reportType === 'topItems') renderTopItemsReport();
+                else if (reportType === 'comparison') renderSalesComparisonReport();
+            });
+
+            $('body').on('click', '#compare-sales-btn', createSalesComparisonChart);
             
             function handleDownloadSalesReport() {
                 let filteredOrders = [];
@@ -2798,9 +3047,51 @@
                 downloadCSV(csvRows.join('\n'), `inventory-report-${new Date().toISOString().split('T')[0]}.csv`);
                 showToast('Inventory report download started.');
             }
+             function handleDownloadTopItemsReport() {
+                let filteredOrders = state.orders.filter(o => o.status === 'completed');
+                 switch(state.report.range) {
+                    case 'custom':
+                        const reportYear = state.report.year;
+                        const reportMonth = state.report.month;
+                        filteredOrders = filteredOrders.filter(order => {
+                            const orderDate = new Date(order.timestamp);
+                            if (reportMonth === 'all') return orderDate.getFullYear() === reportYear;
+                            return orderDate.getFullYear() === reportYear && orderDate.getMonth() === parseInt(reportMonth);
+                        });
+                        break;
+                    case '7days':
+                    default:
+                        const today = new Date('2025-10-08T10:53:00');
+                        const sevenDaysAgo = new Date(today);
+                        sevenDaysAgo.setDate(today.getDate() - 6);
+                        sevenDaysAgo.setHours(0, 0, 0, 0);
+                        filteredOrders = filteredOrders.filter(order => {
+                            const orderDate = new Date(order.timestamp);
+                            return orderDate >= sevenDaysAgo && orderDate <= today;
+                        });
+                        break;
+                }
+                const itemCounts = filteredOrders.flatMap(o => o.items).reduce((acc, item) => {
+                    if (!acc[item.name]) { acc[item.name] = { name: item.name, quantity: 0, total: 0 }; }
+                    acc[item.name].quantity += item.quantity;
+                    acc[item.name].total += item.price * item.quantity;
+                    return acc;
+                }, {});
+                const topItems = Object.values(itemCounts).sort((a, b) => b.quantity - a.quantity);
+
+                const headers = ["Item Name", "Quantity Sold", "Total Revenue"];
+                let csvRows = [headers.join(',')];
+                for (const item of topItems) {
+                    const row = [`"${item.name}"`, item.quantity, item.total.toFixed(2)].join(',');
+                    csvRows.push(row);
+                }
+                downloadCSV(csvRows.join('\n'), `top-items-report-${new Date().toISOString().split('T')[0]}.csv`);
+                showToast('Top items report download started.');
+            }
 
             $('body').on('click', '#download-sales-report', handleDownloadSalesReport);
             $('body').on('click', '#download-inventory-report', handleDownloadInventoryReport);
+             $('body').on('click', '#download-top-items-report', handleDownloadTopItemsReport);
 
 
             // Save active inventory tab
